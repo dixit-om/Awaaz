@@ -3,8 +3,8 @@
  * Business entity types (User, Complaint, etc.) will be added in feature phases.
  */
 
-/** Application user roles (RBAC foundation) */
-export type UserRole = 'citizen' | 'mla' | 'admin';
+export type { UserRole, PrismaUserRole } from './role';
+export { appRoleToPrismaRole, prismaRoleToAppRole } from './role';
 
 /** Standard API response wrapper */
 export type ApiResponse<T> = {
@@ -28,3 +28,5 @@ export type PaginatedResponse<T> = {
   items: T[];
   meta: PaginationMeta;
 };
+
+export type { AuthUser, JwtAccessPayload, TokenPair, UserProfile } from './auth';

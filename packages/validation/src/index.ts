@@ -19,3 +19,15 @@ export const idParamSchema = z.object({
 });
 
 export type IdParam = z.infer<typeof idParamSchema>;
+
+export {
+  phoneNumberSchema,
+  sendOtpSchema,
+  verifyOtpSchema,
+  refreshTokenSchema,
+  logoutSchema,
+  type SendOtpInput,
+  type VerifyOtpInput,
+  type RefreshTokenInput,
+  type LogoutInput,
+} from './auth';

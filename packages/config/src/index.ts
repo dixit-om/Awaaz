@@ -6,3 +6,5 @@ export {
   type ClientEnv,
   type ServerEnv,
 } from './env';
+
+export { getAuthConfig, authConfigSchema, type AuthConfig } from './auth';

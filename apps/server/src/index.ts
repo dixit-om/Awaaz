@@ -1,16 +1,10 @@
-import { config } from 'dotenv';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import './load-env';
 import cors from 'cors';
 import express from 'express';
 import * as trpcExpress from '@trpc/server/adapters/express';
 import { getClientEnv, getServerEnv } from '@awaaz/config';
-import { appRouter } from '@awaaz/trpc';
+import { appRouter } from './trpc/app';
 import { createContext } from './trpc/context';
-
-// Load .env from monorepo root
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-config({ path: resolve(__dirname, '../../../.env') });
 
 const env = getServerEnv();
 const clientEnv = getClientEnv();

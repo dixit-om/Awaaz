@@ -7,6 +7,14 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./server": {
+      "types": "./src/server.ts",
+      "default": "./src/server.ts"
+    },
+    "./context": {
+      "types": "./src/context.ts",
+      "default": "./src/context.ts"
     }
   },
   "scripts": {
@@ -14,6 +22,10 @@
     "lint": "eslint src/"
   },
   "dependencies": {
+    "@awaaz/auth": "workspace:*",
+    "@awaaz/db": "workspace:*",
+    "@awaaz/types": "workspace:*",
+    "@awaaz/validation": "workspace:*",
     "@trpc/server": "^11.1.2",
     "superjson": "^2.2.2",
     "zod": "^3.25.51"
@@ -21,6 +33,7 @@
   "devDependencies": {
     "@awaaz/eslint-config": "workspace:*",
     "@awaaz/typescript-config": "workspace:*",
+    "@types/node": "^22.15.29",
     "eslint": "^9.28.0",
     "typescript": "^5.8.3"
   }

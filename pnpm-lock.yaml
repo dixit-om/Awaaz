@@ -75,6 +75,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@awaaz/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@awaaz/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -201,6 +204,46 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
+  packages/auth:
+    dependencies:
+      '@awaaz/config':
+        specifier: workspace:*
+        version: link:../config
+      '@awaaz/db':
+        specifier: workspace:*
+        version: link:../db
+      '@awaaz/types':
+        specifier: workspace:*
+        version: link:../types
+      '@awaaz/validation':
+        specifier: workspace:*
+        version: link:../validation
+      '@trpc/server':
+        specifier: ^11.1.2
+        version: 11.17.0(typescript@5.9.3)
+      jose:
+        specifier: ^6.0.11
+        version: 6.2.3
+      zod:
+        specifier: ^3.25.51
+        version: 3.25.76
+    devDependencies:
+      '@awaaz/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@awaaz/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.15.29
+        version: 22.19.19
+      eslint:
+        specifier: ^9.28.0
+        version: 9.39.4(jiti@2.7.0)
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
   packages/config:
     dependencies:
       zod:
@@ -244,6 +287,9 @@ importers:
       prisma:
         specifier: ^6.9.0
         version: 6.19.3(typescript@5.9.3)
+      tsx:
+        specifier: ^4.19.4
+        version: 4.22.3
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -283,6 +329,18 @@ importers:
 
   packages/trpc:
     dependencies:
+      '@awaaz/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@awaaz/db':
+        specifier: workspace:*
+        version: link:../db
+      '@awaaz/types':
+        specifier: workspace:*
+        version: link:../types
+      '@awaaz/validation':
+        specifier: workspace:*
+        version: link:../validation
       '@trpc/server':
         specifier: ^11.1.2
         version: 11.17.0(typescript@5.9.3)
@@ -299,6 +357,9 @@ importers:
       '@awaaz/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.15.29
+        version: 22.19.19
       eslint:
         specifier: ^9.28.0
         version: 9.39.4(jiti@2.7.0)
@@ -1896,6 +1957,9 @@ packages:
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
+
+  jose@6.2.3:
+    resolution: {integrity: sha512-YYVDInQKFJfR/xa3ojUTl8c2KoTwiL1R5Wg9YCydwH0x0B9grbzlg5HC7mMjCtUJjbQ/YnGEZIhI5tCgfTb4Hw==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -4263,6 +4327,8 @@ snapshots:
       set-function-name: 2.0.2
 
   jiti@2.7.0: {}
+
+  jose@6.2.3: {}
 
   js-tokens@4.0.0: {}
 

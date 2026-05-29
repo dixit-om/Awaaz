@@ -224,14 +224,38 @@ pnpm dev
 
 ### Useful commands
 
-| Command          | Description            |
-| ---------------- | ---------------------- |
-| `pnpm dev`       | Start all apps (Turbo) |
-| `pnpm build`     | Production build       |
-| `pnpm typecheck` | TypeScript check       |
-| `pnpm lint`      | ESLint across monorepo |
-| `pnpm format`    | Format with Prettier   |
-| `pnpm db:studio` | Open Prisma Studio     |
+| Command          | Description                |
+| ---------------- | -------------------------- |
+| `pnpm dev`       | Start all apps (Turbo)     |
+| `pnpm build`     | Production build           |
+| `pnpm typecheck` | TypeScript check           |
+| `pnpm lint`      | ESLint across monorepo     |
+| `pnpm format`    | Format with Prettier       |
+| `pnpm db:studio` | Open Prisma Studio         |
+| `pnpm db:seed`   | Seed admin / MLA / citizen |
+
+## Authentication (Phase 1)
+
+- **OTP login** via Indian mobile (`+91XXXXXXXXXX`)
+- **JWT access token** (15 min) + **opaque refresh token** (7 days, rotation on refresh)
+- **RBAC roles:** `citizen`, `mla`, `admin`
+- **tRPC namespace:** `auth.*`
+
+| Procedure             | Access    | Description                       |
+| --------------------- | --------- | --------------------------------- |
+| `auth.sendOTP`        | Public    | Send OTP to phone                 |
+| `auth.verifyOTP`      | Public    | Verify OTP, returns tokens + user |
+| `auth.refreshToken`   | Public    | Rotate refresh token              |
+| `auth.logout`         | Protected | Revoke refresh token              |
+| `auth.getCurrentUser` | Protected | Current user profile              |
+
+**Local dev:** set `OTP_DEV_MODE=true` in `.env` — OTP is printed to the server console.
+
+**Seeded users** (after `pnpm db:push` + `pnpm db:seed`):
+
+- Admin: `+919876543210`
+- MLA: `+919876543211`
+- Citizen: `+919876543212`
 
 ## MVP Focus
 

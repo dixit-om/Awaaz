@@ -1,12 +1,17 @@
-import { router } from './trpc';
+import type { AuthService } from '@awaaz/auth';
+import { router } from './server';
+import { createAuthRouter } from './routers/auth';
 import { healthRouter } from './routers/health';
 
 /**
- * Root application router.
- * Feature routers (auth, complaints, leaderboard, etc.) merge here.
+ * Build the root application router.
+ * Called once at server startup with shared services.
  */
-export const appRouter = router({
-  health: healthRouter,
-});
+export function createAppRouter(authService: AuthService) {
+  return router({
+    health: healthRouter,
+    auth: createAuthRouter(authService),
+  });
+}
 
-export type AppRouter = typeof appRouter;
+export type AppRouter = ReturnType<typeof createAppRouter>;

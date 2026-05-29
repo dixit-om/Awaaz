@@ -17,6 +17,7 @@
     "db:push": "pnpm --filter @awaaz/db db:push",
     "db:migrate": "pnpm --filter @awaaz/db db:migrate",
     "db:studio": "pnpm --filter @awaaz/db db:studio",
+    "db:seed": "pnpm --filter @awaaz/db db:seed",
     "prepare": "husky"
   },
   "devDependencies": {

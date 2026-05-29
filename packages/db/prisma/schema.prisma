@@ -1,6 +1,4 @@
-// AWAAZ Database Schema
-// Foundation: PostgreSQL + PostGIS extension enabled
-// Business models (User, Complaint, etc.) will be added in feature phases.
+// AWAAZ Database Schema — PostgreSQL + PostGIS
 
 generator client {
   provider        = "prisma-client-js"
@@ -13,17 +11,50 @@ datasource db {
   extensions = [postgis(schema: "public")]
 }
 
-// ---------------------------------------------------------------------------
-// Foundation placeholder — ensures migrations/PostGIS wiring works.
-// Remove or replace when domain models are introduced.
-// ---------------------------------------------------------------------------
+enum UserRole {
+  CITIZEN
+  MLA
+  ADMIN
+}
 
-model SchemaMeta {
+model User {
+  id              String   @id @default(cuid())
+  name            String?
+  phoneNumber     String   @unique
+  role            UserRole @default(CITIZEN)
+  isVerified      Boolean  @default(false)
+  reputationScore Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+
+  @@index([role])
+  @@map("users")
+}
+
+model OTPVerification {
+  id          String   @id @default(cuid())
+  phoneNumber String
+  otpHash     String
+  expiresAt   DateTime
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([phoneNumber, createdAt])
+  @@map("otp_verifications")
+}
+
+model RefreshToken {
   id        String   @id @default(cuid())
-  key       String   @unique
-  value     String?
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  @@map("schema_meta")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }
