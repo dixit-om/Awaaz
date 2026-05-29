@@ -1,0 +1,41 @@
+{
+  "name": "awaaz",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,yml,yaml}\"",
+    "db:generate": "pnpm --filter @awaaz/db generate",
+    "db:push": "pnpm --filter @awaaz/db db:push",
+    "db:migrate": "pnpm --filter @awaaz/db db:migrate",
+    "db:studio": "pnpm --filter @awaaz/db db:studio",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@awaaz/eslint-config": "workspace:*",
+    "eslint": "^9.28.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.1",
+    "prettier": "^3.5.3",
+    "prettier-plugin-tailwindcss": "^0.6.11",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs,cjs}": [
+      "eslint --fix --max-warnings 0 --no-warn-ignored",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
+}

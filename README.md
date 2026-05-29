@@ -114,17 +114,20 @@ Citizen Login → Report Issue → Upload Image/Video → Capture GPS Location �
 
 awaaz/
 ├── apps/
-│   ├── web/        # Citizen-facing web app (Next.js)
-│   ├── server/     # Backend (tRPC, jobs, realtime)
-│   └── admin/      # Admin panel
+│ ├── web/ # Citizen-facing web app (Next.js)
+│ ├── server/ # Express + tRPC API server
+│ └── admin/ # Admin panel (Next.js)
 │
 ├── packages/
-│   ├── ui/         # Shared UI components
-│   ├── db/         # Prisma schema + db client
-│   ├── validation/ # Zod schemas / validators
-│   ├── types/      # Shared types
-│   ├── config/     # Shared config
-│   └── utils/      # Shared utilities
+│ ├── trpc/ # Shared tRPC routers & AppRouter type
+│ ├── db/ # Prisma schema + db client
+│ ├── ui/ # Shared UI components
+│ ├── validation/ # Zod schemas / validators
+│ ├── types/ # Shared types
+│ ├── config/ # Environment validation (Zod)
+│ ├── utils/ # Shared utilities
+│ ├── eslint-config/
+│ └── typescript-config/
 
 ## Core Backend Modules (Planned / Target)
 
@@ -176,11 +179,59 @@ Powered by **PostGIS** and Geo tooling:
 - **Nearby issues map**
 - **Heatmaps and geo analytics**
 
-## Engineering Tooling (Planned / Target)
+## Engineering Tooling
 
+- **Turborepo** + **pnpm workspaces**
 - **ESLint**, **Prettier**
 - **Husky**, **lint-staged**
 - (Future) **Docker**, **GitHub Actions**
+
+## Development Setup
+
+### Prerequisites
+
+- Node.js **20+**
+- pnpm **9+**
+- PostgreSQL with **PostGIS** extension
+- Redis (optional for foundation; required for BullMQ later)
+
+### Quick start
+
+```bash
+# Install dependencies
+pnpm install
+
+# Copy environment variables
+cp .env.example .env
+
+# Generate Prisma client
+pnpm db:generate
+
+# Push schema to database (requires PostgreSQL running)
+pnpm db:push
+
+# Start all apps in dev mode
+pnpm dev
+```
+
+### Apps & ports
+
+| App    | Package         | URL                   |
+| ------ | --------------- | --------------------- |
+| Web    | `@awaaz/web`    | http://localhost:3000 |
+| Admin  | `@awaaz/admin`  | http://localhost:3001 |
+| Server | `@awaaz/server` | http://localhost:4000 |
+
+### Useful commands
+
+| Command          | Description            |
+| ---------------- | ---------------------- |
+| `pnpm dev`       | Start all apps (Turbo) |
+| `pnpm build`     | Production build       |
+| `pnpm typecheck` | TypeScript check       |
+| `pnpm lint`      | ESLint across monorepo |
+| `pnpm format`    | Format with Prettier   |
+| `pnpm db:studio` | Open Prisma Studio     |
 
 ## MVP Focus
 

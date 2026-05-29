@@ -1,0 +1,28 @@
+{
+  "name": "@awaaz/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@awaaz/eslint-config": "workspace:*",
+    "@awaaz/typescript-config": "workspace:*",
+    "@types/react": "^19.1.6",
+    "eslint": "^9.28.0",
+    "react": "^19.1.0",
+    "typescript": "^5.8.3"
+  }
+}

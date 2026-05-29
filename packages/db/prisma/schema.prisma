@@ -1,0 +1,29 @@
+// AWAAZ Database Schema
+// Foundation: PostgreSQL + PostGIS extension enabled
+// Business models (User, Complaint, etc.) will be added in feature phases.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis(schema: "public")]
+}
+
+// ---------------------------------------------------------------------------
+// Foundation placeholder — ensures migrations/PostGIS wiring works.
+// Remove or replace when domain models are introduced.
+// ---------------------------------------------------------------------------
+
+model SchemaMeta {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("schema_meta")
+}
