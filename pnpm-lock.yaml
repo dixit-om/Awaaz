@@ -78,6 +78,9 @@ importers:
       '@awaaz/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@awaaz/complaints':
+        specifier: workspace:*
+        version: link:../../packages/complaints
       '@awaaz/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -244,6 +247,37 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
+  packages/complaints:
+    dependencies:
+      '@awaaz/db':
+        specifier: workspace:*
+        version: link:../db
+      '@awaaz/types':
+        specifier: workspace:*
+        version: link:../types
+      '@awaaz/validation':
+        specifier: workspace:*
+        version: link:../validation
+      '@trpc/server':
+        specifier: ^11.1.2
+        version: 11.17.0(typescript@5.9.3)
+    devDependencies:
+      '@awaaz/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@awaaz/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.15.29
+        version: 22.19.19
+      eslint:
+        specifier: ^9.28.0
+        version: 9.39.4(jiti@2.7.0)
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
   packages/config:
     dependencies:
       zod:
@@ -332,6 +366,9 @@ importers:
       '@awaaz/auth':
         specifier: workspace:*
         version: link:../auth
+      '@awaaz/complaints':
+        specifier: workspace:*
+        version: link:../complaints
       '@awaaz/db':
         specifier: workspace:*
         version: link:../db

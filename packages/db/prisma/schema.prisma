@@ -11,6 +11,10 @@ datasource db {
   extensions = [postgis(schema: "public")]
 }
 
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
 enum UserRole {
   CITIZEN
   MLA
@@ -27,7 +31,10 @@ model User {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  refreshTokens RefreshToken[]
+  refreshTokens      RefreshToken[]
+  citizenComplaints  Complaint[]              @relation("CitizenComplaints")
+  assignedComplaints Complaint[]              @relation("AssignedComplaints")
+  statusChanges      ComplaintStatusHistory[]
 
   @@index([role])
   @@map("users")
@@ -57,4 +64,119 @@ model RefreshToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Complaints (Phase 2)
+// ---------------------------------------------------------------------------
+
+enum ComplaintStatus {
+  SUBMITTED
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  VERIFIED
+  REJECTED
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum MediaUploadStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+model ComplaintCategory {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  icon      String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  complaints Complaint[]
+
+  @@map("complaint_categories")
+}
+
+model Complaint {
+  id                  String            @id @default(cuid())
+  title               String
+  description         String
+  categoryId          String
+  citizenId           String
+  assignedAuthorityId String?
+  status              ComplaintStatus   @default(SUBMITTED)
+  priority            ComplaintPriority @default(MEDIUM)
+  latitude            Decimal           @db.Decimal(10, 7)
+  longitude           Decimal           @db.Decimal(10, 7)
+  address             String?
+  isPublic            Boolean           @default(true)
+  deletedAt           DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  category          ComplaintCategory        @relation(fields: [categoryId], references: [id])
+  citizen           User                     @relation("CitizenComplaints", fields: [citizenId], references: [id])
+  assignedAuthority User?                    @relation("AssignedComplaints", fields: [assignedAuthorityId], references: [id])
+  media             ComplaintMedia[]
+  statusHistory     ComplaintStatusHistory[]
+
+  @@index([citizenId])
+  @@index([assignedAuthorityId])
+  @@index([status])
+  @@index([categoryId])
+  @@index([createdAt])
+  @@index([isPublic, status])
+  @@map("complaints")
+}
+
+model ComplaintMedia {
+  id           String            @id @default(cuid())
+  complaintId  String
+  mediaType    MediaType
+  mediaUrl     String
+  mimeType     String?
+  fileSize     Int?
+  width        Int?
+  height       Int?
+  durationSec  Int?
+  uploadStatus MediaUploadStatus @default(PENDING)
+  externalId   String?
+  sortOrder    Int               @default(0)
+  createdAt    DateTime          @default(now())
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId])
+  @@map("complaint_media")
+}
+
+model ComplaintStatusHistory {
+  id             String           @id @default(cuid())
+  complaintId    String
+  previousStatus ComplaintStatus?
+  newStatus      ComplaintStatus
+  changedById    String
+  remarks        String?
+  createdAt      DateTime         @default(now())
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  changedBy User      @relation(fields: [changedById], references: [id])
+
+  @@index([complaintId, createdAt])
+  @@map("complaint_status_history")
 }

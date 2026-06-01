@@ -31,3 +31,22 @@ export {
   type RefreshTokenInput,
   type LogoutInput,
 } from './auth';
+
+export {
+  latitudeSchema,
+  longitudeSchema,
+  complaintTitleSchema,
+  complaintDescriptionSchema,
+  cuidSchema,
+  complaintMediaItemSchema,
+  complaintMediaSchema,
+  createComplaintSchema,
+  complaintIdSchema,
+  listComplaintsSchema,
+  updateComplaintStatusSchema,
+  type CreateComplaintSchema,
+  type ComplaintIdSchema,
+  type ListComplaintsSchema,
+  type UpdateComplaintStatusSchema,
+  type ComplaintMediaItemSchema,
+} from './complaints';

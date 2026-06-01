@@ -1,8 +1,3 @@
-/**
- * Shared domain types for AWAAZ.
- * Business entity types (User, Complaint, etc.) will be added in feature phases.
- */
-
 export type { UserRole, PrismaUserRole } from './role';
 export { appRoleToPrismaRole, prismaRoleToAppRole } from './role';
 
@@ -30,3 +25,27 @@ export type PaginatedResponse<T> = {
 };
 
 export type { AuthUser, JwtAccessPayload, TokenPair, UserProfile } from './auth';
+
+export {
+  ALLOWED_TRANSITIONS,
+  TERMINAL_STATUSES,
+  REMARKS_REQUIRED_STATUSES,
+  type ComplaintStatus,
+  type ComplaintPriority,
+  type MediaType,
+  type MediaUploadStatus,
+  type ComplaintAuthor,
+  type ComplaintCategoryDetail,
+  type ComplaintCategoryItem,
+  type ComplaintLocation,
+  type ComplaintMediaItem,
+  type ComplaintMediaInput,
+  type ComplaintHistoryItem,
+  type ComplaintDetail,
+  type ComplaintSummary,
+  type ComplaintCreateResult,
+  type ComplaintStatusUpdateResult,
+  type CreateComplaintInput,
+  type UpdateComplaintStatusInput,
+  type ListComplaintsInput,
+} from './complaints';

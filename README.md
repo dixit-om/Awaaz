@@ -110,24 +110,28 @@ Citizen Login → Report Issue → Upload Image/Video → Capture GPS Location �
 - **OpenAI**, **LangChain**, **Pinecone**
 - AI classification, duplicate detection, civic assistant chatbot, predictive analytics, escalation intelligence
 
-## Repo Structure (Planned / Target)
+## Repo Structure
 
+```
 awaaz/
 ├── apps/
-│ ├── web/ # Citizen-facing web app (Next.js)
-│ ├── server/ # Express + tRPC API server
-│ └── admin/ # Admin panel (Next.js)
+│   ├── web/              # Citizen-facing web app (Next.js)
+│   ├── server/           # Express + tRPC API server
+│   └── admin/            # Admin panel (Next.js)
 │
-├── packages/
-│ ├── trpc/ # Shared tRPC routers & AppRouter type
-│ ├── db/ # Prisma schema + db client
-│ ├── ui/ # Shared UI components
-│ ├── validation/ # Zod schemas / validators
-│ ├── types/ # Shared types
-│ ├── config/ # Environment validation (Zod)
-│ ├── utils/ # Shared utilities
-│ ├── eslint-config/
-│ └── typescript-config/
+└── packages/
+    ├── auth/             # OTP, JWT, refresh-token logic
+    ├── complaints/       # Complaint service, repository, constants
+    ├── trpc/             # Root router, tRPC middleware, AppRouter type
+    ├── db/               # Prisma schema, client singleton, seed
+    ├── types/            # Shared domain types & enums
+    ├── validation/       # Zod input schemas
+    ├── config/           # Environment variable validation
+    ├── ui/               # Shared React UI components
+    ├── utils/            # Shared utilities
+    ├── eslint-config/
+    └── typescript-config/
+```
 
 ## Core Backend Modules (Planned / Target)
 
@@ -224,17 +228,17 @@ pnpm dev
 
 ### Useful commands
 
-| Command          | Description                |
-| ---------------- | -------------------------- |
-| `pnpm dev`       | Start all apps (Turbo)     |
-| `pnpm build`     | Production build           |
-| `pnpm typecheck` | TypeScript check           |
-| `pnpm lint`      | ESLint across monorepo     |
-| `pnpm format`    | Format with Prettier       |
-| `pnpm db:studio` | Open Prisma Studio         |
-| `pnpm db:seed`   | Seed admin / MLA / citizen |
+| Command          | Description                       |
+| ---------------- | --------------------------------- |
+| `pnpm dev`       | Start all apps (Turbo)            |
+| `pnpm build`     | Production build                  |
+| `pnpm typecheck` | TypeScript check                  |
+| `pnpm lint`      | ESLint across monorepo            |
+| `pnpm format`    | Format with Prettier              |
+| `pnpm db:studio` | Open Prisma Studio                |
+| `pnpm db:seed`   | Seed users + complaint categories |
 
-## Authentication (Phase 1)
+## Authentication (Phase 1 — Complete)
 
 - **OTP login** via Indian mobile (`+91XXXXXXXXXX`)
 - **JWT access token** (15 min) + **opaque refresh token** (7 days, rotation on refresh)
@@ -257,16 +261,117 @@ pnpm dev
 - MLA: `+919876543211`
 - Citizen: `+919876543212`
 
+**Seeded complaint categories** (same command):
+
+| Slug             | Name                  |
+| ---------------- | --------------------- |
+| `garbage`        | Garbage Issues        |
+| `road`           | Road Issues           |
+| `water`          | Water Problems        |
+| `electricity`    | Electricity Problems  |
+| `drainage`       | Drainage Problems     |
+| `infrastructure` | Public Infrastructure |
+
+## Complaint Management (Phase 2)
+
+The complaint module is the core domain of AWAAZ. It handles the full lifecycle of a civic issue from submission through resolution.
+
+### Complaint Lifecycle
+
+```
+SUBMITTED → ASSIGNED → IN_PROGRESS → RESOLVED → VERIFIED
+                                              ↘ REJECTED
+```
+
+Every status transition is recorded in an immutable `ComplaintStatusHistory` table — providing a full, auditable trail for every complaint.
+
+### Status Transition Rules
+
+| From          | Allowed Next Statuses     | Who can trigger              |
+| ------------- | ------------------------- | ---------------------------- |
+| `SUBMITTED`   | `ASSIGNED`, `REJECTED`    | Admin                        |
+| `ASSIGNED`    | `IN_PROGRESS`, `REJECTED` | Admin, MLA                   |
+| `IN_PROGRESS` | `RESOLVED`                | Admin, MLA                   |
+| `RESOLVED`    | `VERIFIED`, `REJECTED`    | Citizen (own complaint only) |
+| `VERIFIED`    | — (terminal)              | —                            |
+| `REJECTED`    | — (terminal)              | —                            |
+
+### tRPC Procedures — `complaints.*`
+
+| Procedure                          | Access     | Description                             |
+| ---------------------------------- | ---------- | --------------------------------------- |
+| `complaints.listCategories`        | Public     | All active complaint categories         |
+| `complaints.createComplaint`       | Citizen    | Submit a new civic complaint            |
+| `complaints.getComplaintById`      | Protected  | Full detail + media + status history    |
+| `complaints.listComplaints`        | Protected  | Role-scoped list (own / assigned / all) |
+| `complaints.updateComplaintStatus` | Protected  | Advance lifecycle with optional remarks |
+| `complaints.deleteComplaint`       | Admin only | Soft-delete a complaint                 |
+
+### Role-based Visibility
+
+| Role      | `listComplaints` scope | Can create | Can update status                                      |
+| --------- | ---------------------- | ---------- | ------------------------------------------------------ |
+| `citizen` | Own complaints only    | Yes        | Only `VERIFIED` / `REJECTED` on own resolved complaint |
+| `mla`     | Assigned complaints    | No         | `IN_PROGRESS`, `RESOLVED`                              |
+| `admin`   | All complaints         | No         | All transitions + soft delete                          |
+
+### Complaint Categories (seeded)
+
+| Slug             | Name                  |
+| ---------------- | --------------------- |
+| `garbage`        | Garbage Issues        |
+| `road`           | Road Issues           |
+| `water`          | Water Problems        |
+| `electricity`    | Electricity Problems  |
+| `drainage`       | Drainage Problems     |
+| `infrastructure` | Public Infrastructure |
+
+### Database Models
+
+- **`Complaint`** — core entity with title, description, category, GPS coordinates, address, priority, status, and optional authority assignment
+- **`ComplaintMedia`** — stores media metadata (URL, type, upload status) — actual upload via Cloudinary in a later phase
+- **`ComplaintStatusHistory`** — immutable record of every status change (who changed it, when, and why)
+- **`ComplaintCategory`** — lookup table for civic issue categories
+
+### Media Strategy (Current MVP)
+
+Media metadata is stored in `ComplaintMedia` (URL, type, upload status). File uploads via **Cloudinary** and background processing via **BullMQ** are prepared in the schema and will be wired in the media upload phase.
+
+### Geo Strategy (Current MVP)
+
+Raw `latitude`, `longitude`, and `address` are stored on every complaint. **PostGIS**-based constituency detection, nearby-issue queries, and heatmaps are designed in the schema and will be activated in the GIS phase.
+
+---
+
+## Development Progress
+
+| Phase      | Module                                                | Status      |
+| ---------- | ----------------------------------------------------- | ----------- |
+| Foundation | Turborepo, pnpm, TypeScript, ESLint, Prettier, Husky  | ✅ Complete |
+| Foundation | PostgreSQL + Prisma + PostGIS schema                  | ✅ Complete |
+| Foundation | Shared packages (types, validation, config, utils)    | ✅ Complete |
+| Phase 1    | Authentication (OTP, JWT, refresh tokens, RBAC)       | ✅ Complete |
+| Phase 2    | Complaint management (lifecycle, history, categories) | ✅ Complete |
+| Phase 3    | Media upload (Cloudinary + BullMQ)                    | Planned     |
+| Phase 3    | GIS + constituency mapping (PostGIS)                  | Planned     |
+| Phase 4    | Notifications (FCM + Socket.IO)                       | Planned     |
+| Phase 4    | MLA assignment engine                                 | Planned     |
+| Phase 5    | Leaderboard + analytics dashboards                    | Planned     |
+| Phase 6    | Frontend (web + admin)                                | Planned     |
+| Future     | AI classification, duplicate detection, civic chatbot | Future      |
+
 ## MVP Focus
 
-The first milestone prioritizes the core complaint system:
+The first milestone covers the backend complaint system foundation:
 
-- **Authentication**
-- **Complaint reporting**
-- **GPS mapping + constituency detection**
-- **Authority/MLA assignment**
-- **Status tracking + history**
-- **Citizen verification**
-- **Public leaderboard**
+- ✅ **Authentication** — OTP login, JWT, refresh tokens, RBAC
+- ✅ **Complaint reporting** — create, list, detail, status updates, soft delete
+- ✅ **Status lifecycle** — immutable history for full auditability
+- ✅ **Role-based access** — citizen / mla / admin scoping
+- ⬜ **Media upload** — Cloudinary integration
+- ⬜ **GPS mapping** — PostGIS constituency detection
+- ⬜ **Authority assignment** — MLA area mapping
+- ⬜ **Citizen verification** — confirm resolution feedback
+- ⬜ **Public leaderboard** — authority performance scoring
 
 Advanced AI features and deeper analytics come after the MVP foundation is stable.

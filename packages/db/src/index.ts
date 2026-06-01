@@ -19,4 +19,16 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export { PrismaClient };
-export type { Prisma, User, UserRole } from '@prisma/client';
+export type {
+  Prisma,
+  User,
+  UserRole,
+  Complaint,
+  ComplaintCategory,
+  ComplaintMedia,
+  ComplaintStatusHistory,
+  ComplaintStatus,
+  ComplaintPriority,
+  MediaType,
+  MediaUploadStatus,
+} from '@prisma/client';
