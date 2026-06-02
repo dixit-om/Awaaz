@@ -1,4 +1,5 @@
 import { TRPCError } from '@trpc/server';
+import type { GeoService } from '@awaaz/geo';
 import type { AuthUser } from '@awaaz/types';
 import type {
   ComplaintCategoryItem,
@@ -16,7 +17,10 @@ import { canTransition, isTerminalStatus, transitionErrorMessage } from './compl
 import type { ComplaintRepository } from './complaint.repository.js';
 
 export class ComplaintService {
-  constructor(private readonly repo: ComplaintRepository) {}
+  constructor(
+    private readonly repo: ComplaintRepository,
+    private readonly geoService?: GeoService,
+  ) {}
 
   // ---------------------------------------------------------------------------
   // createComplaint
@@ -47,7 +51,32 @@ export class ComplaintService {
       });
     }
 
-    return this.repo.create(input, actor.id);
+    // Phase 1 — create complaint with SUBMITTED status + initial history entry
+    const complaint = await this.repo.create(input, actor.id);
+
+    // Phase 2 — geo assignment (never throws; failure leaves complaint as SUBMITTED)
+    // GeoService resolves constituency via PostGIS point-in-polygon, finds the
+    // active authority, and updates the complaint row + creates a history entry
+    // if an authority was found (SUBMITTED → ASSIGNED).
+    if (this.geoService) {
+      try {
+        await this.geoService.resolveAndAssign(
+          complaint.id,
+          input.latitude,
+          input.longitude,
+          actor.id,
+        );
+      } catch {
+        // Geo step failed after complaint was saved — complaint is intact as SUBMITTED.
+        // Silently continue so the citizen always gets a response.
+      }
+
+      // Re-fetch to reflect any status/authority changes made by geo assignment
+      const updated = await this.repo.findById(complaint.id);
+      if (updated) return updated;
+    }
+
+    return complaint;
   }
 
   // ---------------------------------------------------------------------------

@@ -7,7 +7,10 @@ import { prisma } from '@awaaz/db';
 import { createAppRouter } from '@awaaz/trpc';
 
 const authService = createAuthService(prisma, getAuthConfig());
-const complaintService = createComplaintService(prisma);
 const geoService = createGeoService(prisma);
+
+// GeoService injected into ComplaintService so complaint creation
+// automatically triggers constituency resolution and authority assignment.
+const complaintService = createComplaintService(prisma, geoService);
 
 export const appRouter = createAppRouter({ authService, complaintService, geoService });

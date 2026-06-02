@@ -405,9 +405,15 @@ export class GeoRepository {
   // ------------------------------------------------------------------
 
   /**
-   * Writes geo-assignment fields onto a complaint in a single update.
-   * Called by ComplaintService after resolveAndAssign completes.
-   * Keeps the geo write isolated from the complaint creation write.
+   * Writes geo-assignment fields onto a complaint atomically.
+   * When an authority is resolved (AUTO assignment), also:
+   *   - advances status to ASSIGNED
+   *   - creates a ComplaintStatusHistory entry (changedById = citizenId)
+   *
+   * For UNMATCHED results, status stays SUBMITTED — no history entry is
+   * created because the status has not changed.
+   *
+   * Called by GeoService.resolveAndAssign after the PostGIS lookup.
    */
   async updateComplaintGeoAssignment(
     complaintId: string,
@@ -415,19 +421,36 @@ export class GeoRepository {
       constituencyId: string | null;
       authorityId: string | null;
       source: AssignmentSource;
+      citizenId: string;
     },
   ): Promise<void> {
-    await this.db.complaint.update({
-      where: { id: complaintId },
-      data: {
-        constituencyId: opts.constituencyId,
-        assignedAuthorityId: opts.authorityId,
-        assignmentSource: opts.source,
-        // Only record assignedAt when an actual authority was found
-        assignedAt: opts.authorityId ? new Date() : null,
-        // Advance to ASSIGNED only when an authority is present
-        ...(opts.authorityId ? { status: 'ASSIGNED' } : {}),
-      },
+    const willAssign = opts.authorityId !== null;
+    const now = new Date();
+
+    await this.db.$transaction(async (tx) => {
+      await tx.complaint.update({
+        where: { id: complaintId },
+        data: {
+          constituencyId: opts.constituencyId,
+          assignedAuthorityId: opts.authorityId,
+          assignmentSource: opts.source,
+          assignedAt: willAssign ? now : null,
+          ...(willAssign ? { status: 'ASSIGNED' } : {}),
+        },
+      });
+
+      // Record status transition only when status actually changed
+      if (willAssign) {
+        await tx.complaintStatusHistory.create({
+          data: {
+            complaintId,
+            previousStatus: 'SUBMITTED',
+            newStatus: 'ASSIGNED',
+            changedById: opts.citizenId,
+            remarks: 'Auto-assigned by system geo lookup',
+          },
+        });
+      }
     });
   }
 

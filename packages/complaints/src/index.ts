@@ -14,9 +14,13 @@ export { ComplaintRepository } from './complaint.repository.js';
 export { ComplaintService } from './complaint.service.js';
 
 import type { PrismaClient } from '@awaaz/db';
+import type { GeoService } from '@awaaz/geo';
 import { ComplaintRepository } from './complaint.repository.js';
 import { ComplaintService } from './complaint.service.js';
 
-export function createComplaintService(db: PrismaClient): ComplaintService {
-  return new ComplaintService(new ComplaintRepository(db));
+export function createComplaintService(
+  db: PrismaClient,
+  geoService?: GeoService,
+): ComplaintService {
+  return new ComplaintService(new ComplaintRepository(db), geoService);
 }

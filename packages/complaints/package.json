@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@awaaz/db": "workspace:*",
+    "@awaaz/geo": "workspace:*",
     "@awaaz/types": "workspace:*",
     "@awaaz/validation": "workspace:*",
     "@trpc/server": "^11.1.2"

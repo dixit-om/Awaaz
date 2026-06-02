@@ -255,6 +255,9 @@ importers:
       '@awaaz/db':
         specifier: workspace:*
         version: link:../db
+      '@awaaz/geo':
+        specifier: workspace:*
+        version: link:../geo
       '@awaaz/types':
         specifier: workspace:*
         version: link:../types

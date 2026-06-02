@@ -31,6 +31,7 @@ export class GeoService {
     complaintId: string,
     lat: number,
     lng: number,
+    citizenId: string,
   ): Promise<GeoAssignmentResult> {
     // Fast pre-filter: skip PostGIS if coordinates are outside India
     if (!isValidIndiaCoordinate(lat, lng)) {
@@ -38,6 +39,7 @@ export class GeoService {
         constituencyId: null,
         authorityId: null,
         source: 'UNMATCHED',
+        citizenId,
       });
       return {
         success: false,
@@ -56,6 +58,7 @@ export class GeoService {
         constituencyId: null,
         authorityId: null,
         source: 'UNMATCHED',
+        citizenId,
       });
       return {
         success: false,
@@ -70,6 +73,7 @@ export class GeoService {
         constituencyId: null,
         authorityId: null,
         source: 'UNMATCHED',
+        citizenId,
       });
       return {
         success: false,
@@ -86,6 +90,7 @@ export class GeoService {
       constituencyId,
       authorityId,
       source: 'AUTO',
+      citizenId,
     });
 
     return {
@@ -261,6 +266,7 @@ export class GeoService {
       constituencyId,
       authorityId,
       source: 'MANUAL',
+      citizenId: actor.id,
     });
 
     return {
