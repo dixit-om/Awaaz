@@ -1,4 +1,5 @@
 // AWAAZ Database Schema — PostgreSQL + PostGIS
+// Phase 3 additions: Constituency, AuthorityAssignment, GeoBoundaryVersion
 
 generator client {
   provider        = "prisma-client-js"
@@ -31,10 +32,14 @@ model User {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  refreshTokens      RefreshToken[]
-  citizenComplaints  Complaint[]              @relation("CitizenComplaints")
-  assignedComplaints Complaint[]              @relation("AssignedComplaints")
-  statusChanges      ComplaintStatusHistory[]
+  refreshTokens          RefreshToken[]
+  citizenComplaints      Complaint[]              @relation("CitizenComplaints")
+  assignedComplaints     Complaint[]              @relation("AssignedComplaints")
+  statusChanges          ComplaintStatusHistory[]
+  // Geo (Phase 3)
+  authorityAssignments   AuthorityAssignment[]    @relation("AuthorityAssignments")
+  assignedByAssignments  AuthorityAssignment[]    @relation("AssignedByUser")
+  importedBoundaries     GeoBoundaryVersion[]
 
   @@index([role])
   @@map("users")
@@ -113,25 +118,30 @@ model ComplaintCategory {
 }
 
 model Complaint {
-  id                  String            @id @default(cuid())
+  id                  String             @id @default(cuid())
   title               String
   description         String
   categoryId          String
   citizenId           String
   assignedAuthorityId String?
-  status              ComplaintStatus   @default(SUBMITTED)
-  priority            ComplaintPriority @default(MEDIUM)
-  latitude            Decimal           @db.Decimal(10, 7)
-  longitude           Decimal           @db.Decimal(10, 7)
+  status              ComplaintStatus    @default(SUBMITTED)
+  priority            ComplaintPriority  @default(MEDIUM)
+  latitude            Decimal            @db.Decimal(10, 7)
+  longitude           Decimal            @db.Decimal(10, 7)
   address             String?
-  isPublic            Boolean           @default(true)
+  // Geo assignment (Phase 3)
+  constituencyId      String?
+  assignmentSource    AssignmentSource?
+  assignedAt          DateTime?
+  isPublic            Boolean            @default(true)
   deletedAt           DateTime?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   category          ComplaintCategory        @relation(fields: [categoryId], references: [id])
   citizen           User                     @relation("CitizenComplaints", fields: [citizenId], references: [id])
   assignedAuthority User?                    @relation("AssignedComplaints", fields: [assignedAuthorityId], references: [id])
+  constituency      Constituency?            @relation(fields: [constituencyId], references: [id])
   media             ComplaintMedia[]
   statusHistory     ComplaintStatusHistory[]
 
@@ -139,6 +149,8 @@ model Complaint {
   @@index([assignedAuthorityId])
   @@index([status])
   @@index([categoryId])
+  @@index([constituencyId])
+  @@index([assignmentSource])
   @@index([createdAt])
   @@index([isPublic, status])
   @@map("complaints")
@@ -179,4 +191,95 @@ model ComplaintStatusHistory {
 
   @@index([complaintId, createdAt])
   @@map("complaint_status_history")
+}
+
+// ---------------------------------------------------------------------------
+// Geo Mapping & Authority Assignment (Phase 3)
+// ---------------------------------------------------------------------------
+
+/// How the complaint was assigned to a constituency/authority.
+/// AUTO     — system point-in-polygon lookup
+/// MANUAL   — admin override
+/// UNMATCHED — no polygon contained the complaint's coordinates
+enum AssignmentSource {
+  AUTO
+  MANUAL
+  UNMATCHED
+}
+
+/// Geographic level of a constituency.
+enum ConstituencyType {
+  WARD
+  ASSEMBLY
+  PARLIAMENTARY
+}
+
+/// Tracks each batch of boundary data imported.
+/// When the Election Commission redraws boundaries (delimitation), a new
+/// version is created — existing complaint FKs are preserved unchanged.
+model GeoBoundaryVersion {
+  id           String   @id @default(cuid())
+  version      String   @unique
+  description  String?
+  isActive     Boolean  @default(false)
+  importedById String
+  importedAt   DateTime @default(now())
+
+  importedBy     User           @relation(fields: [importedById], references: [id])
+  constituencies Constituency[]
+
+  @@map("geo_boundary_versions")
+}
+
+/// One geographic unit — ward, assembly seat, or parliamentary seat.
+/// The `boundary` column is a PostGIS geometry(MultiPolygon, 4326) column.
+/// Prisma models it as Unsupported; all spatial writes/reads use $queryRaw.
+/// `geoJson` is stored alongside for fast API serialisation without a
+/// PostGIS round-trip.
+model Constituency {
+  id                String           @id @default(cuid())
+  name              String
+  code              String           @unique
+  type              ConstituencyType
+  geoJson           Json
+  /// PostGIS geometry — written via ST_GeomFromGeoJSON, read via ST_AsGeoJSON
+  boundary          Unsupported("geometry(MultiPolygon, 4326)")?
+  boundaryVersionId String
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  boundaryVersion     GeoBoundaryVersion    @relation(fields: [boundaryVersionId], references: [id])
+  authorityAssignments AuthorityAssignment[]
+  complaints          Complaint[]
+
+  @@index([isActive])
+  @@index([type, isActive])
+  @@map("constituencies")
+}
+
+/// Time-bound assignment of an MLA/authority to a constituency.
+/// When an MLA changes, endDate is set on the old record and a new record
+/// is inserted — preserving the full assignment history.
+/// `isActive` is a denormalised Boolean for fast indexed lookups;
+/// it must always equal (endDate IS NULL) and is maintained by the service.
+model AuthorityAssignment {
+  id             String    @id @default(cuid())
+  constituencyId String
+  authorityId    String
+  assignedById   String
+  startDate      DateTime
+  endDate        DateTime?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  constituency Constituency @relation(fields: [constituencyId], references: [id])
+  authority    User         @relation("AuthorityAssignments", fields: [authorityId], references: [id])
+  assignedBy   User         @relation("AssignedByUser", fields: [assignedById], references: [id])
+
+  @@index([constituencyId, isActive])
+  @@index([authorityId, isActive])
+  @@index([startDate, endDate])
+  @@map("authority_assignments")
 }

@@ -31,4 +31,10 @@ export type {
   ComplaintPriority,
   MediaType,
   MediaUploadStatus,
+  // Phase 3 — Geo
+  Constituency,
+  AuthorityAssignment,
+  GeoBoundaryVersion,
+  AssignmentSource,
+  ConstituencyType,
 } from '@prisma/client';

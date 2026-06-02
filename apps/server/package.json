@@ -13,6 +13,7 @@
   "dependencies": {
     "@awaaz/auth": "workspace:*",
     "@awaaz/complaints": "workspace:*",
+    "@awaaz/geo": "workspace:*",
     "@awaaz/config": "workspace:*",
     "@awaaz/db": "workspace:*",
     "@awaaz/types": "workspace:*",

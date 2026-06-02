@@ -27,6 +27,24 @@ export type PaginatedResponse<T> = {
 export type { AuthUser, JwtAccessPayload, TokenPair, UserProfile } from './auth';
 
 export {
+  type AssignmentSource,
+  type ConstituencyType,
+  type AuthorityRef,
+  type ActiveAssignment,
+  type ConstituencyDetail,
+  type ConstituencySummary,
+  type ConstituencyLookupResult,
+  type ManualAssignmentResult,
+  type AuthorityAssignmentDetail,
+  type GeoAssignmentResult,
+  type FindConstituencyByLocationInput,
+  type GetConstituencyInput,
+  type ListConstituenciesInput,
+  type AssignComplaintToAuthorityInput,
+  type ListAuthorityAssignmentsInput,
+} from './geo';
+
+export {
   ALLOWED_TRANSITIONS,
   TERMINAL_STATUSES,
   REMARKS_REQUIRED_STATUSES,

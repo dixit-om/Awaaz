@@ -33,6 +33,19 @@ export {
 } from './auth';
 
 export {
+  findConstituencyByLocationSchema,
+  getConstituencySchema,
+  listConstituenciesSchema,
+  assignComplaintToAuthoritySchema,
+  listAuthorityAssignmentsSchema,
+  type FindConstituencyByLocationSchema,
+  type GetConstituencySchema,
+  type ListConstituenciesSchema,
+  type AssignComplaintToAuthoritySchema,
+  type ListAuthorityAssignmentsSchema,
+} from './geo';
+
+export {
   latitudeSchema,
   longitudeSchema,
   complaintTitleSchema,
