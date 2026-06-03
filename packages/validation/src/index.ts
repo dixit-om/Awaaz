@@ -42,6 +42,23 @@ export {
 } from './notifications';
 
 export {
+  dateRangeSchema,
+  getOverviewSchema,
+  getComplaintMetricsSchema,
+  getCategoryMetricsSchema,
+  getConstituencyMetricsSchema,
+  getAuthorityMetricsSchema,
+  getGovernanceMetricsSchema,
+  type DateRangeSchema,
+  type GetOverviewSchema,
+  type GetComplaintMetricsSchema,
+  type GetCategoryMetricsSchema,
+  type GetConstituencyMetricsSchema,
+  type GetAuthorityMetricsSchema,
+  type GetGovernanceMetricsSchema,
+} from './analytics';
+
+export {
   findConstituencyByLocationSchema,
   getConstituencySchema,
   listConstituenciesSchema,

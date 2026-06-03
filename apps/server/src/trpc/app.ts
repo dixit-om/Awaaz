@@ -3,6 +3,7 @@ import { createAuthService } from '@awaaz/auth';
 import { createComplaintService } from '@awaaz/complaints';
 import { createGeoService } from '@awaaz/geo';
 import { NotificationRepository, createNotificationService } from '@awaaz/notifications';
+import { AnalyticsRepository, createAnalyticsService } from '@awaaz/analytics';
 import { getAuthConfig, getServerEnv } from '@awaaz/config';
 import { prisma } from '@awaaz/db';
 import { createAppRouter } from '@awaaz/trpc';
@@ -26,9 +27,14 @@ export const notificationService = createNotificationService(
   env.REDIS_URL ?? 'redis://127.0.0.1:6379',
 );
 
+// AnalyticsService is stateless — no workers, no extra connections beyond Prisma.
+const analyticsRepo = new AnalyticsRepository(prisma);
+const analyticsService = createAnalyticsService(analyticsRepo);
+
 export const appRouter = createAppRouter({
   authService,
   complaintService,
   geoService,
   notificationService,
+  analyticsService,
 });

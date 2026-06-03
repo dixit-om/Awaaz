@@ -1,6 +1,25 @@
 export type { UserRole, PrismaUserRole } from './role';
 
 export {
+  type DateRangeInput,
+  type OverviewResult,
+  type ComplaintMetricsResult,
+  type CategoryMetricsItem,
+  type CategoryMetricsResult,
+  type ConstituencyMetricsItem,
+  type ConstituencyMetricsResult,
+  type AuthorityMetricsItem,
+  type AuthorityMetricsResult,
+  type GovernanceMetricsResult,
+  type GetOverviewInput,
+  type GetComplaintMetricsInput,
+  type GetCategoryMetricsInput,
+  type GetConstituencyMetricsInput,
+  type GetAuthorityMetricsInput,
+  type GetGovernanceMetricsInput,
+} from './analytics';
+
+export {
   type NotificationType,
   type NotificationItem,
   type UnreadCountResult,
