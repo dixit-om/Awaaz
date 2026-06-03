@@ -33,6 +33,15 @@ export {
 } from './auth';
 
 export {
+  getNotificationsSchema,
+  markAsReadSchema,
+  markAllAsReadSchema,
+  type GetNotificationsSchema,
+  type MarkAsReadSchema,
+  type MarkAllAsReadSchema,
+} from './notifications';
+
+export {
   findConstituencyByLocationSchema,
   getConstituencySchema,
   listConstituenciesSchema,

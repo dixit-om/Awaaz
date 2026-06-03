@@ -1,5 +1,6 @@
 // AWAAZ Database Schema — PostgreSQL + PostGIS
 // Phase 3 additions: Constituency, AuthorityAssignment, GeoBoundaryVersion
+// Phase 4 additions: Notification, NotificationPreference, EventLog
 
 generator client {
   provider        = "prisma-client-js"
@@ -40,6 +41,9 @@ model User {
   authorityAssignments   AuthorityAssignment[]    @relation("AuthorityAssignments")
   assignedByAssignments  AuthorityAssignment[]    @relation("AssignedByUser")
   importedBoundaries     GeoBoundaryVersion[]
+  // Notifications (Phase 4)
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
 
   @@index([role])
   @@map("users")
@@ -282,4 +286,96 @@ model AuthorityAssignment {
   @@index([authorityId, isActive])
   @@index([startDate, endDate])
   @@map("authority_assignments")
+}
+
+// ---------------------------------------------------------------------------
+// Event System & Notifications (Phase 4)
+// ---------------------------------------------------------------------------
+
+/// Type of in-app notification delivered to a user.
+enum NotificationType {
+  COMPLAINT_CREATED
+  COMPLAINT_ASSIGNED
+  COMPLAINT_STATUS_UPDATED
+  COMPLAINT_RESOLVED
+  COMPLAINT_VERIFIED
+  COMPLAINT_REJECTED
+  SYSTEM_ANNOUNCEMENT
+}
+
+/// Processing status of an event in the EventLog.
+/// Used by the outbox pattern (Phase 5) for guaranteed delivery.
+enum EventStatus {
+  PENDING
+  PROCESSED
+  FAILED
+  DEAD
+}
+
+/// One notification per user per event.
+/// Immutable once created — isRead / readAt are the only mutable fields.
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  /// Structured context for deep-linking — e.g. { complaintId, status }
+  metadata  Json             @default("{}")
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+/// Per-user channel preferences.
+/// One row per user — upserted at first login / first notification.
+/// pushEnabled and emailEnabled default to false until the respective
+/// token / email address is verified and registered.
+model NotificationPreference {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  inAppEnabled Boolean  @default(true)
+  pushEnabled  Boolean  @default(false)
+  emailEnabled Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+/// Append-only log of every domain event published by the system.
+///
+/// Phase 4: populated by EventPublisher as a secondary write.
+///          status is set to PROCESSED after the BullMQ job completes.
+///
+/// Phase 5 (Outbox Pattern): EventPublisher writes PENDING rows first;
+///          a separate poller reads PENDING rows and enqueues BullMQ jobs,
+///          guaranteeing at-least-once delivery even if Redis is temporarily
+///          unavailable.
+///
+/// Useful for: event replay, audit trail, debugging, analytics pipelines.
+model EventLog {
+  id          String      @id @default(cuid())
+  eventType   String
+  /// Full event payload serialised as JSON
+  payload     Json
+  status      EventStatus @default(PENDING)
+  /// BullMQ job id — set after successful enqueue
+  jobId       String?
+  /// Error message from the last failed processing attempt
+  errorMsg    String?
+  attempts    Int         @default(0)
+  processedAt DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([eventType, status])
+  @@index([status, createdAt])
+  @@map("event_logs")
 }

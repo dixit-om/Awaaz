@@ -14,6 +14,7 @@
     "@awaaz/auth": "workspace:*",
     "@awaaz/complaints": "workspace:*",
     "@awaaz/geo": "workspace:*",
+    "@awaaz/notifications": "workspace:*",
     "@awaaz/config": "workspace:*",
     "@awaaz/db": "workspace:*",
     "@awaaz/types": "workspace:*",

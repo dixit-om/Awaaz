@@ -1,0 +1,27 @@
+{
+  "name": "@awaaz/events",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@awaaz/db": "workspace:*",
+    "bullmq": "^5.78.0"
+  },
+  "devDependencies": {
+    "@awaaz/eslint-config": "workspace:*",
+    "@awaaz/typescript-config": "workspace:*",
+    "@types/node": "^22.15.29",
+    "eslint": "^9.28.0",
+    "typescript": "^5.8.3"
+  }
+}

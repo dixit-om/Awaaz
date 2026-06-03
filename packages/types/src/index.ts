@@ -1,4 +1,15 @@
 export type { UserRole, PrismaUserRole } from './role';
+
+export {
+  type NotificationType,
+  type NotificationItem,
+  type UnreadCountResult,
+  type MarkReadResult,
+  type NotificationPreferenceItem,
+  type GetNotificationsInput,
+  type MarkAsReadInput,
+  type CreateNotificationData,
+} from './notifications';
 export { appRoleToPrismaRole, prismaRoleToAppRole } from './role';
 
 /** Standard API response wrapper */

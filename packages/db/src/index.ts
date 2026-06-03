@@ -37,4 +37,10 @@ export type {
   GeoBoundaryVersion,
   AssignmentSource,
   ConstituencyType,
+  // Phase 4 — Notifications
+  Notification,
+  NotificationPreference,
+  EventLog,
+  NotificationType,
+  EventStatus,
 } from '@prisma/client';
