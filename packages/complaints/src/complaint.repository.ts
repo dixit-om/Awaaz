@@ -13,7 +13,8 @@ import type {
   CreateComplaintInput,
   ListComplaintsInput,
   MediaType,
-  MediaUploadStatus,
+  MediaStatus,
+  ModerationStatus,
 } from '@awaaz/types';
 
 // ---------------------------------------------------------------------------
@@ -35,15 +36,16 @@ const categoryDetailSelect = {
 const mediaSelect = {
   id: true,
   mediaType: true,
-  mediaUrl: true,
-  mimeType: true,
-  fileSize: true,
+  secureUrl: true,
+  thumbnailUrl: true,
   width: true,
   height: true,
   durationSec: true,
-  uploadStatus: true,
+  status: true,
+  moderationStatus: true,
   sortOrder: true,
-} satisfies Prisma.ComplaintMediaSelect;
+  uploadedAt: true,
+} satisfies Prisma.MediaAssetSelect;
 
 const historySelect = {
   id: true,
@@ -116,14 +118,15 @@ function toDetail(
     media: row.media.map((m) => ({
       id: m.id,
       mediaType: m.mediaType as MediaType,
-      mediaUrl: m.mediaUrl,
-      mimeType: m.mimeType,
-      fileSize: m.fileSize,
+      secureUrl: m.secureUrl,
+      thumbnailUrl: m.thumbnailUrl,
       width: m.width,
       height: m.height,
       durationSec: m.durationSec,
-      uploadStatus: m.uploadStatus as MediaUploadStatus,
+      status: m.status as MediaStatus,
+      moderationStatus: m.moderationStatus as ModerationStatus,
       sortOrder: m.sortOrder,
+      uploadedAt: m.uploadedAt,
     })) satisfies ComplaintMediaItem[],
     statusHistory: row.statusHistory.map((h) => ({
       id: h.id,
@@ -233,6 +236,9 @@ export class ComplaintRepository {
   // ------------------------------------------------------------------
 
   async create(input: CreateComplaintInput, citizenId: string): Promise<ComplaintDetail> {
+    // Phase 7: media is uploaded separately via media.createUploadRequest /
+    // media.confirmUpload after the complaint is created. No inline media
+    // creation happens here.
     const row = await this.db.complaint.create({
       data: {
         title: input.title,
@@ -245,16 +251,6 @@ export class ComplaintRepository {
         priority: input.priority ?? 'MEDIUM',
         isPublic: input.isPublic ?? true,
         status: 'SUBMITTED',
-        media: {
-          create: input.media.map((m, i) => ({
-            mediaType: m.mediaType,
-            mediaUrl: m.mediaUrl,
-            mimeType: m.mimeType ?? null,
-            fileSize: m.fileSize ?? null,
-            sortOrder: m.sortOrder ?? i,
-            uploadStatus: 'PENDING',
-          })),
-        },
         statusHistory: {
           create: {
             previousStatus: null,

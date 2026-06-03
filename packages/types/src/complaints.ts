@@ -1,4 +1,5 @@
 import type { UserRole } from './role';
+import type { MediaAssetEmbed } from './media';
 
 // ---------------------------------------------------------------------------
 // Enums (app-level; mirror Prisma but decoupled from @prisma/client)
@@ -15,8 +16,6 @@ export type ComplaintStatus =
 export type ComplaintPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
 export type MediaType = 'IMAGE' | 'VIDEO';
-
-export type MediaUploadStatus = 'PENDING' | 'READY' | 'FAILED';
 
 // ---------------------------------------------------------------------------
 // Status transition table
@@ -78,18 +77,12 @@ export type ComplaintLocation = {
   address: string | null;
 };
 
-export type ComplaintMediaItem = {
-  id: string;
-  mediaType: MediaType;
-  mediaUrl: string;
-  mimeType: string | null;
-  fileSize: number | null;
-  width: number | null;
-  height: number | null;
-  durationSec: number | null;
-  uploadStatus: MediaUploadStatus;
-  sortOrder: number;
-};
+/**
+ * Compact media embed inside ComplaintDetail.media.
+ * Re-exported from the media domain for use in complaint response shapes.
+ * The service layer maps MediaAsset rows to this shape before returning.
+ */
+export type ComplaintMediaItem = MediaAssetEmbed;
 
 export type ComplaintHistoryItem = {
   id: string;
@@ -179,7 +172,11 @@ export type CreateComplaintInput = {
   longitude: number;
   address?: string;
   priority?: ComplaintPriority;
-  media: ComplaintMediaInput[];
+  /**
+   * @deprecated Phase 7: Media is uploaded separately via media.createUploadRequest
+   * after the complaint is created. This field is ignored by the repository.
+   */
+  media?: ComplaintMediaInput[];
   isPublic?: boolean;
 };
 

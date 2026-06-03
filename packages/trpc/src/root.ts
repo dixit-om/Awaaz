@@ -4,6 +4,7 @@ import type { GeoService } from '@awaaz/geo';
 import type { NotificationService } from '@awaaz/notifications';
 import type { AnalyticsService } from '@awaaz/analytics';
 import type { LeaderboardService } from '@awaaz/leaderboard';
+import type { MediaService } from '@awaaz/media';
 import { router } from './server';
 import { createAuthRouter } from './routers/auth';
 import { createComplaintsRouter } from './routers/complaints';
@@ -12,6 +13,7 @@ import { healthRouter } from './routers/health';
 import { createNotificationsRouter } from './routers/notifications';
 import { createAnalyticsRouter } from './routers/analytics';
 import { createLeaderboardRouter } from './routers/leaderboard';
+import { createMediaRouter } from './routers/media';
 
 export interface AppServices {
   authService: AuthService;
@@ -20,6 +22,7 @@ export interface AppServices {
   notificationService: NotificationService;
   analyticsService: AnalyticsService;
   leaderboardService: LeaderboardService;
+  mediaService: MediaService;
 }
 
 /**
@@ -35,6 +38,7 @@ export function createAppRouter(services: AppServices) {
     notifications: createNotificationsRouter(services.notificationService),
     analytics: createAnalyticsRouter(services.analyticsService),
     leaderboard: createLeaderboardRouter(services.leaderboardService),
+    media: createMediaRouter(services.mediaService),
   });
 }
 

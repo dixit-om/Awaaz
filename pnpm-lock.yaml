@@ -90,12 +90,18 @@ importers:
       '@awaaz/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@awaaz/events':
+        specifier: workspace:*
+        version: link:../../packages/events
       '@awaaz/geo':
         specifier: workspace:*
         version: link:../../packages/geo
       '@awaaz/leaderboard':
         specifier: workspace:*
         version: link:../../packages/leaderboard
+      '@awaaz/media':
+        specifier: workspace:*
+        version: link:../../packages/media
       '@awaaz/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
@@ -506,6 +512,49 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
+  packages/media:
+    dependencies:
+      '@awaaz/db':
+        specifier: workspace:*
+        version: link:../db
+      '@awaaz/events':
+        specifier: workspace:*
+        version: link:../events
+      '@awaaz/types':
+        specifier: workspace:*
+        version: link:../types
+      '@awaaz/validation':
+        specifier: workspace:*
+        version: link:../validation
+      '@paralleldrive/cuid2':
+        specifier: ^3.3.0
+        version: 3.3.0
+      '@prisma/client':
+        specifier: ^6.19.3
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
+      '@trpc/server':
+        specifier: ^11.1.2
+        version: 11.17.0(typescript@5.9.3)
+      cloudinary:
+        specifier: ^2.10.0
+        version: 2.10.0
+    devDependencies:
+      '@awaaz/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@awaaz/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.15.29
+        version: 22.19.19
+      eslint:
+        specifier: ^9.28.0
+        version: 9.39.4(jiti@2.7.0)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/notifications:
     dependencies:
       '@awaaz/db':
@@ -560,6 +609,9 @@ importers:
       '@awaaz/leaderboard':
         specifier: workspace:*
         version: link:../leaderboard
+      '@awaaz/media':
+        specifier: workspace:*
+        version: link:../media
       '@awaaz/notifications':
         specifier: workspace:*
         version: link:../notifications
@@ -1619,6 +1671,10 @@ packages:
   client-only@0.0.1:
     resolution: {integrity: sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA==}
 
+  cloudinary@2.10.0:
+    resolution: {integrity: sha512-sY09kYg7wprkndAOjZBAYqFZqwL+SxnEGcAvksOvFA+5upnFn949UjkEkHKNSwkBtW/xRDd0p6NgbSXZcxkI3w==}
+    engines: {node: '>=9'}
+
   cluster-key-slot@1.1.2:
     resolution: {integrity: sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA==}
     engines: {node: '>=0.10.0'}
@@ -2383,6 +2439,9 @@ packages:
 
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
+
+  lodash@4.18.1:
+    resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
   log-update@6.1.0:
     resolution: {integrity: sha512-9ie8ItPR6tjY5uYJh8K/Zrv/RMZ5VOlOWvtZdEHYSTFKZfIBPQa9tOAEeAWhd+AnIneLJ22w5fjOYtoutpWq5w==}
@@ -3960,6 +4019,10 @@ snapshots:
 
   client-only@0.0.1: {}
 
+  cloudinary@2.10.0:
+    dependencies:
+      lodash: 4.18.1
+
   cluster-key-slot@1.1.2: {}
 
   color-convert@2.0.1:
@@ -4847,6 +4910,8 @@ snapshots:
   lodash.isarguments@3.1.0: {}
 
   lodash.merge@4.6.2: {}
+
+  lodash@4.18.1: {}
 
   log-update@6.1.0:
     dependencies:

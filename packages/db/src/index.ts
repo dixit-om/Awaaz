@@ -25,12 +25,9 @@ export type {
   UserRole,
   Complaint,
   ComplaintCategory,
-  ComplaintMedia,
   ComplaintStatusHistory,
   ComplaintStatus,
   ComplaintPriority,
-  MediaType,
-  MediaUploadStatus,
   // Phase 3 — Geo
   Constituency,
   AuthorityAssignment,
@@ -45,4 +42,10 @@ export type {
   EventStatus,
   // Phase 6 — Leaderboard
   LeaderboardSnapshot,
+  // Phase 7 — Media
+  MediaAsset,
+  MediaType,
+  MediaStatus,
+  ModerationStatus,
+  CloudProvider,
 } from '@prisma/client';

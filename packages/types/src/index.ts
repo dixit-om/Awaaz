@@ -102,7 +102,6 @@ export {
   type ComplaintStatus,
   type ComplaintPriority,
   type MediaType,
-  type MediaUploadStatus,
   type ComplaintAuthor,
   type ComplaintCategoryDetail,
   type ComplaintCategoryItem,
@@ -118,3 +117,30 @@ export {
   type UpdateComplaintStatusInput,
   type ListComplaintsInput,
 } from './complaints';
+
+// ---------------------------------------------------------------------------
+// Phase 7 — Media Upload & Evidence Management
+// ---------------------------------------------------------------------------
+export {
+  type MediaStatus,
+  type ModerationStatus,
+  type CloudProvider,
+  type MediaAssetDTO,
+  type MediaAssetPublicDTO,
+  type MediaAssetEmbed,
+  type CreateUploadRequestInput,
+  type ConfirmUploadInput,
+  type GetMediaByComplaintInput,
+  type DeleteMediaInput,
+  type CreateUploadRequestResult,
+  type ConfirmUploadResult,
+  type GetMediaByComplaintResult,
+  type DeleteMediaResult,
+  type CloudProviderUploadParams,
+  type CloudAssetMetadata,
+  type GenerateUploadParamsOptions,
+  type CloudProviderAdapter,
+  type ModerationRequest,
+  type ModerationResult,
+  type ModerationAdapter,
+} from './media';

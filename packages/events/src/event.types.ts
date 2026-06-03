@@ -27,6 +27,9 @@ export const EVENT_TYPE = {
   COMPLAINT_RESOLVED: 'complaint.resolved',
   COMPLAINT_VERIFIED: 'complaint.verified',
   COMPLAINT_REJECTED: 'complaint.rejected',
+  // Phase 7 — Media
+  MEDIA_UPLOADED: 'media.uploaded',
+  MEDIA_DELETED: 'media.deleted',
 } as const;
 
 export type EventType = (typeof EVENT_TYPE)[keyof typeof EVENT_TYPE];
@@ -135,6 +138,38 @@ export interface ComplaintRejectedPayload {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 7 — Media events
+// ---------------------------------------------------------------------------
+
+/**
+ * Emitted when a media asset is confirmed (status → READY).
+ * Used by: moderation queue trigger, notification system (future),
+ * analytics pipeline (media attachment rate).
+ */
+export interface MediaUploadedPayload {
+  mediaAssetId: string;
+  complaintId: string;
+  uploadedById: string;
+  mediaType: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256Hash: string | null;
+}
+
+/**
+ * Emitted when a media asset is soft-deleted.
+ * Used by: audit trail, moderation cleanup.
+ */
+export interface MediaDeletedPayload {
+  mediaAssetId: string;
+  complaintId: string;
+  deletedById: string;
+  mediaType: string;
+  /** 'citizen_request' | 'admin_removal' | 'moderation_rejected' */
+  reason: string;
+}
+
+// ---------------------------------------------------------------------------
 // Typed event aliases
 // ---------------------------------------------------------------------------
 
@@ -168,6 +203,10 @@ export type ComplaintRejectedEvent = BaseEvent<
   ComplaintRejectedPayload
 >;
 
+export type MediaUploadedEvent = BaseEvent<typeof EVENT_TYPE.MEDIA_UPLOADED, MediaUploadedPayload>;
+
+export type MediaDeletedEvent = BaseEvent<typeof EVENT_TYPE.MEDIA_DELETED, MediaDeletedPayload>;
+
 /** Discriminated union of all AWAAZ domain events. */
 export type DomainEvent =
   | ComplaintCreatedEvent
@@ -175,7 +214,9 @@ export type DomainEvent =
   | ComplaintStatusChangedEvent
   | ComplaintResolvedEvent
   | ComplaintVerifiedEvent
-  | ComplaintRejectedEvent;
+  | ComplaintRejectedEvent
+  | MediaUploadedEvent
+  | MediaDeletedEvent;
 
 // ---------------------------------------------------------------------------
 // Event factory helper

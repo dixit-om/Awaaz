@@ -106,3 +106,24 @@ export {
   type UpdateComplaintStatusSchema,
   type ComplaintMediaItemSchema,
 } from './complaints';
+
+// ---------------------------------------------------------------------------
+// Phase 7 — Media Upload & Evidence Management
+// ---------------------------------------------------------------------------
+export {
+  sha256HexSchema,
+  createUploadRequestSchema,
+  confirmUploadSchema,
+  getMediaByComplaintSchema,
+  deleteMediaSchema,
+  ALLOWED_IMAGE_MIMES,
+  ALLOWED_VIDEO_MIMES,
+  ALL_ALLOWED_MIMES,
+  MAX_IMAGE_BYTES,
+  MAX_VIDEO_BYTES,
+  type Sha256Hex,
+  type CreateUploadRequestSchema,
+  type ConfirmUploadSchema,
+  type GetMediaByComplaintSchema,
+  type DeleteMediaSchema,
+} from './media';

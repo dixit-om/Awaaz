@@ -157,6 +157,11 @@ export class NotificationService {
       case EVENT_TYPE.COMPLAINT_REJECTED:
         await this.handleComplaintRejected(event.payload);
         break;
+      // Phase 7 — Media events: no user notification needed at this time.
+      // These events are consumed by the moderation queue and analytics pipeline.
+      case EVENT_TYPE.MEDIA_UPLOADED:
+      case EVENT_TYPE.MEDIA_DELETED:
+        break;
       default: {
         // Exhaustive check — TypeScript will warn if a new event type is
         // added to DomainEvent without a case above.

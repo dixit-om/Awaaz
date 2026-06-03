@@ -1,5 +1,5 @@
 {
-  "name": "@awaaz/trpc",
+  "name": "@awaaz/media",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,14 +7,6 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
-    },
-    "./server": {
-      "types": "./src/server.ts",
-      "default": "./src/server.ts"
-    },
-    "./context": {
-      "types": "./src/context.ts",
-      "default": "./src/context.ts"
     }
   },
   "scripts": {
@@ -22,25 +14,20 @@
     "lint": "eslint src/"
   },
   "dependencies": {
-    "@awaaz/auth": "workspace:*",
-    "@awaaz/complaints": "workspace:*",
-    "@awaaz/geo": "workspace:*",
-    "@awaaz/notifications": "workspace:*",
-    "@awaaz/analytics": "workspace:*",
-    "@awaaz/leaderboard": "workspace:*",
-    "@awaaz/media": "workspace:*",
     "@awaaz/db": "workspace:*",
+    "@awaaz/events": "workspace:*",
     "@awaaz/types": "workspace:*",
     "@awaaz/validation": "workspace:*",
+    "@paralleldrive/cuid2": "^3.3.0",
+    "@prisma/client": "^6.19.3",
     "@trpc/server": "^11.1.2",
-    "superjson": "^2.2.2",
-    "zod": "^3.25.51"
+    "cloudinary": "^2.10.0"
   },
   "devDependencies": {
     "@awaaz/eslint-config": "workspace:*",
     "@awaaz/typescript-config": "workspace:*",
     "@types/node": "^22.15.29",
     "eslint": "^9.28.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.3"
   }
 }

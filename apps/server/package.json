@@ -17,6 +17,8 @@
     "@awaaz/notifications": "workspace:*",
     "@awaaz/analytics": "workspace:*",
     "@awaaz/leaderboard": "workspace:*",
+    "@awaaz/events": "workspace:*",
+    "@awaaz/media": "workspace:*",
     "@awaaz/config": "workspace:*",
     "@awaaz/db": "workspace:*",
     "@awaaz/types": "workspace:*",

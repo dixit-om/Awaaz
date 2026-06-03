@@ -88,7 +88,10 @@ export const createComplaintSchema = z.object({
   longitude: longitudeSchema,
   address: z.string().trim().max(500).optional(),
   priority: z.enum(COMPLAINT_PRIORITY).default('MEDIUM'),
-  media: complaintMediaSchema,
+  // Phase 7: media is uploaded separately after complaint creation via
+  // media.createUploadRequest / media.confirmUpload. This field is
+  // deprecated and ignored by the service layer.
+  media: complaintMediaSchema.optional(),
   isPublic: z.boolean().default(true),
 });
 

@@ -5,6 +5,8 @@ import { createGeoService } from '@awaaz/geo';
 import { NotificationRepository, createNotificationService } from '@awaaz/notifications';
 import { AnalyticsRepository, createAnalyticsService } from '@awaaz/analytics';
 import { LeaderboardRepository, createLeaderboardService } from '@awaaz/leaderboard';
+import { MediaRepository, createMediaService, createCloudinaryAdapter } from '@awaaz/media';
+import { createEventPublisher } from '@awaaz/events';
 import { getAuthConfig, getServerEnv } from '@awaaz/config';
 import { prisma } from '@awaaz/db';
 import { createAppRouter } from '@awaaz/trpc';
@@ -38,6 +40,19 @@ const analyticsService = createAnalyticsService(analyticsRepo);
 const leaderboardRepo = new LeaderboardRepository(prisma);
 const leaderboardService = createLeaderboardService(leaderboardRepo);
 
+// MediaService wires together:
+//   • MediaRepository     — Prisma CRUD for MediaAsset rows
+//   • CloudinaryAdapter   — signs upload params, verifies uploads, revokes access
+//   • EventPublisher      — fire-and-forget MEDIA_UPLOADED / MEDIA_DELETED events
+//
+// createCloudinaryAdapter() reads from env vars at startup and throws fast
+// if CLOUDINARY_CLOUD_NAME / API_KEY / API_SECRET are missing.
+// createEventPublisher() returns null when REDIS_URL is unset (dev without Redis).
+const mediaRepo = new MediaRepository(prisma);
+const cloudinaryAdapter = createCloudinaryAdapter();
+const mediaEventPublisher = createEventPublisher(env.REDIS_URL, prisma);
+const mediaService = createMediaService(mediaRepo, cloudinaryAdapter, mediaEventPublisher);
+
 export const appRouter = createAppRouter({
   authService,
   complaintService,
@@ -45,4 +60,5 @@ export const appRouter = createAppRouter({
   notificationService,
   analyticsService,
   leaderboardService,
+  mediaService,
 });

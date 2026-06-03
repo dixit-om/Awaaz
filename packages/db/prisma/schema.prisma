@@ -2,6 +2,7 @@
 // Phase 3 additions: Constituency, AuthorityAssignment, GeoBoundaryVersion
 // Phase 4 additions: Notification, NotificationPreference, EventLog
 // Phase 6 additions: LeaderboardSnapshot
+// Phase 7 additions: MediaAsset (replaces ComplaintMedia)
 
 generator client {
   provider        = "prisma-client-js"
@@ -45,6 +46,10 @@ model User {
   // Notifications (Phase 4)
   notifications          Notification[]
   notificationPreference NotificationPreference?
+  // Media (Phase 7)
+  uploadedMedia          MediaAsset[]           @relation("UploadedMedia")
+  moderatedMedia         MediaAsset[]           @relation("ModeratedMedia")
+  deletedMedia           MediaAsset[]           @relation("DeletedMedia")
 
   @@index([role])
   @@map("users")
@@ -101,10 +106,34 @@ enum MediaType {
   VIDEO
 }
 
-enum MediaUploadStatus {
-  PENDING
+/// Upload lifecycle state — replaces the old MediaUploadStatus enum.
+/// UPLOADING → asset record created, direct upload in progress.
+/// READY     → upload confirmed, asset is accessible.
+/// FAILED    → upload or processing failed; citizen may retry.
+/// DELETED   → soft-deleted; record retained for evidence audit trail.
+enum MediaStatus {
+  UPLOADING
   READY
   FAILED
+  DELETED
+}
+
+/// Content moderation state.
+/// PENDING  → awaiting review (default after READY).
+/// APPROVED → reviewed and cleared — visible to all authorised viewers.
+/// REJECTED → removed from public view; URL blocked at provider level.
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Cloud storage back-end hosting the asset.
+/// Abstracted so the Cloudinary → S3 migration is a config change.
+enum CloudProvider {
+  CLOUDINARY
+  S3
+  LOCAL
 }
 
 model ComplaintCategory {
@@ -147,7 +176,7 @@ model Complaint {
   citizen           User                     @relation("CitizenComplaints", fields: [citizenId], references: [id])
   assignedAuthority User?                    @relation("AssignedComplaints", fields: [assignedAuthorityId], references: [id])
   constituency      Constituency?            @relation(fields: [constituencyId], references: [id])
-  media             ComplaintMedia[]
+  media             MediaAsset[]
   statusHistory     ComplaintStatusHistory[]
 
   @@index([citizenId])
@@ -161,25 +190,102 @@ model Complaint {
   @@map("complaints")
 }
 
-model ComplaintMedia {
-  id           String            @id @default(cuid())
-  complaintId  String
-  mediaType    MediaType
-  mediaUrl     String
-  mimeType     String?
-  fileSize     Int?
-  width        Int?
-  height       Int?
-  durationSec  Int?
-  uploadStatus MediaUploadStatus @default(PENDING)
-  externalId   String?
-  sortOrder    Int               @default(0)
-  createdAt    DateTime          @default(now())
+/// Evidence asset attached to a civic complaint.
+///
+/// Immutability rules (evidence integrity):
+///   • complaintId, uploadedById, mediaType, uploadedAt — NEVER updated after creation.
+///   • publicId, secureUrl, sha256Hash — NEVER updated after status = READY.
+///   • Deletion is ALWAYS soft (deletedAt + deletedById); no physical delete
+///     while complaint is in an active state.
+///
+/// Upload flow:
+///   1. createUploadRequest  → row inserted (UPLOADING), pendingUploadToken set.
+///   2. Client uploads directly to cloud provider (server not in data path).
+///   3. confirmUpload        → status → READY, token cleared, metadata populated.
+///   4. ModerationJob        → moderationStatus transitions PENDING → APPROVED/REJECTED.
+model MediaAsset {
+  id               String   @id @default(cuid())
 
-  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  /// Parent complaint — cascades delete so orphan assets are never left behind.
+  complaintId      String
+  /// Immutable owner — set at upload time, never changed.
+  uploadedById     String
 
-  @@index([complaintId])
-  @@map("complaint_media")
+  // ── File identity ─────────────────────────────────────────────────────────
+  mediaType        MediaType
+  /// Original client-supplied filename — display only, not used for routing.
+  originalFileName String
+  /// MIME type validated against the server-side whitelist before signing.
+  mimeType         String
+  sizeBytes        Int
+  width            Int?
+  height           Int?
+  /// Video duration in seconds (null for images).
+  durationSec      Int?
+
+  // ── Evidence integrity ────────────────────────────────────────────────────
+  /// SHA-256 hex digest of the original file bytes.
+  /// • Duplicate detection: same hash across complaints = recycled evidence.
+  /// • Tamper detection: hash mismatch after retrieval indicates file mutation.
+  /// • Legal audit: chain-of-custody proof for public-interest complaints.
+  /// Populated by confirmUpload; null for legacy rows and failed uploads.
+  sha256Hash       String?
+
+  /// EXIF/metadata capture timestamp — when the photo/video was actually taken.
+  /// Distinct from uploadedAt (when the citizen submitted it).
+  /// Useful for: timeline disputes, detecting backdated evidence, governance SLAs.
+  capturedAt       DateTime?
+
+  // ── Cloud provider ────────────────────────────────────────────────────────
+  cloudProvider    CloudProvider @default(CLOUDINARY)
+  /// Provider-assigned asset identifier — immutable after READY.
+  publicId         String        @default("")
+  /// Primary HTTPS delivery URL.
+  secureUrl        String        @default("")
+  /// Auto-generated thumbnail (Cloudinary eager transform / S3 Lambda).
+  thumbnailUrl     String?
+  /// CDN-rewritten URL for future provider migration — populated post-MVP.
+  cdnUrl           String?
+
+  // ── State machine ─────────────────────────────────────────────────────────
+  status           MediaStatus      @default(UPLOADING)
+
+  // ── Moderation ────────────────────────────────────────────────────────────
+  moderationStatus ModerationStatus @default(PENDING)
+  moderationNotes  String?
+  moderatedById    String?
+  moderatedAt      DateTime?
+
+  // ── Upload session integrity ───────────────────────────────────────────────
+  /// Server-issued CUID2 nonce. Confirmed by client in confirmUpload to prove
+  /// the publicId was issued by this server — prevents publicId forgery.
+  /// Cleared (set NULL) after status transitions to READY.
+  pendingUploadToken String? @unique
+
+  // ── Display ───────────────────────────────────────────────────────────────
+  sortOrder        Int      @default(0)
+
+  // ── Lifecycle timestamps ──────────────────────────────────────────────────
+  uploadedAt       DateTime  @default(now())
+  deletedAt        DateTime?
+  deletedById      String?
+
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  uploadedBy  User      @relation("UploadedMedia",   fields: [uploadedById], references: [id])
+  moderatedBy User?     @relation("ModeratedMedia",  fields: [moderatedById], references: [id])
+  deletedBy   User?     @relation("DeletedMedia",    fields: [deletedById],   references: [id])
+
+  /// Fast read: all active media for a complaint (most common query)
+  @@index([complaintId, status])
+  /// Moderation queue: oldest pending items first
+  @@index([moderationStatus, uploadedAt])
+  /// Soft-delete filter: active assets for a complaint
+  @@index([complaintId, deletedAt])
+  /// Ownership: citizen views / analytics
+  @@index([uploadedById, uploadedAt])
+  /// Hash-based duplicate detection
+  @@index([sha256Hash])
+  @@map("media_assets")
 }
 
 model ComplaintStatusHistory {
