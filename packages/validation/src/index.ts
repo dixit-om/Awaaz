@@ -42,6 +42,23 @@ export {
 } from './notifications';
 
 export {
+  periodTypeSchema,
+  entityTypeSchema,
+  getLeaderboardSchema,
+  getEntityDetailsSchema,
+  getTopPerformersSchema,
+  getMostImprovedSchema,
+  triggerGenerationSchema,
+  type PeriodTypeSchema,
+  type EntityTypeSchema,
+  type GetLeaderboardSchema,
+  type GetEntityDetailsSchema,
+  type GetTopPerformersSchema,
+  type GetMostImprovedSchema,
+  type TriggerGenerationSchema,
+} from './leaderboard';
+
+export {
   dateRangeSchema,
   getOverviewSchema,
   getComplaintMetricsSchema,

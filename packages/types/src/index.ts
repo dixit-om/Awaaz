@@ -1,6 +1,27 @@
 export type { UserRole, PrismaUserRole } from './role';
 
 export {
+  type LeaderboardPeriodType,
+  type LeaderboardEntityType,
+  type AuthorityScoreMetrics,
+  type ConstituencyScoreMetrics,
+  type ScoreMetrics,
+  type LeaderboardEntry,
+  type LeaderboardListResult,
+  type RankHistoryPoint,
+  type AuthorityLeaderboardDetail,
+  type ConstituencyLeaderboardDetail,
+  type MostImprovedEntry,
+  type GenerationResult,
+  type GetLeaderboardInput,
+  type GetEntityDetailsInput,
+  type GetTopPerformersInput,
+  type GetMostImprovedInput,
+  type TriggerGenerationInput,
+  type ScoreSignal,
+} from './leaderboard';
+
+export {
   type DateRangeInput,
   type OverviewResult,
   type ComplaintMetricsResult,

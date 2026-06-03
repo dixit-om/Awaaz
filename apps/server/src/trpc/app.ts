@@ -4,6 +4,7 @@ import { createComplaintService } from '@awaaz/complaints';
 import { createGeoService } from '@awaaz/geo';
 import { NotificationRepository, createNotificationService } from '@awaaz/notifications';
 import { AnalyticsRepository, createAnalyticsService } from '@awaaz/analytics';
+import { LeaderboardRepository, createLeaderboardService } from '@awaaz/leaderboard';
 import { getAuthConfig, getServerEnv } from '@awaaz/config';
 import { prisma } from '@awaaz/db';
 import { createAppRouter } from '@awaaz/trpc';
@@ -31,10 +32,17 @@ export const notificationService = createNotificationService(
 const analyticsRepo = new AnalyticsRepository(prisma);
 const analyticsService = createAnalyticsService(analyticsRepo);
 
+// LeaderboardService is stateless at boot time.
+// Generation is triggered via BullMQ scheduled jobs (Phase 6+) or the
+// admin triggerGeneration procedure. No workers started here.
+const leaderboardRepo = new LeaderboardRepository(prisma);
+const leaderboardService = createLeaderboardService(leaderboardRepo);
+
 export const appRouter = createAppRouter({
   authService,
   complaintService,
   geoService,
   notificationService,
   analyticsService,
+  leaderboardService,
 });

@@ -16,6 +16,7 @@
     "@awaaz/geo": "workspace:*",
     "@awaaz/notifications": "workspace:*",
     "@awaaz/analytics": "workspace:*",
+    "@awaaz/leaderboard": "workspace:*",
     "@awaaz/config": "workspace:*",
     "@awaaz/db": "workspace:*",
     "@awaaz/types": "workspace:*",

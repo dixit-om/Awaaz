@@ -43,4 +43,6 @@ export type {
   EventLog,
   NotificationType,
   EventStatus,
+  // Phase 6 — Leaderboard
+  LeaderboardSnapshot,
 } from '@prisma/client';

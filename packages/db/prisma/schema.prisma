@@ -1,6 +1,7 @@
 // AWAAZ Database Schema — PostgreSQL + PostGIS
 // Phase 3 additions: Constituency, AuthorityAssignment, GeoBoundaryVersion
 // Phase 4 additions: Notification, NotificationPreference, EventLog
+// Phase 6 additions: LeaderboardSnapshot
 
 generator client {
   provider        = "prisma-client-js"
@@ -348,6 +349,55 @@ model NotificationPreference {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
+}
+
+// ---------------------------------------------------------------------------
+// Leaderboard Engine (Phase 6)
+// ---------------------------------------------------------------------------
+
+/// Pre-computed leaderboard score snapshot for an authority or constituency.
+///
+/// Snapshots are append-only — never mutated after isPublished = true.
+/// scoreVersion allows formula changes without invalidating historical data.
+/// isPublished is flipped atomically for an entire batch so users never see
+/// a partially-generated leaderboard.
+model LeaderboardSnapshot {
+  id              String   @id @default(cuid())
+  /// 'AUTHORITY' | 'CONSTITUENCY' — string (not enum) for future extensibility
+  entityType      String
+  /// userId for AUTHORITY, constituencyId for CONSTITUENCY
+  entityId        String
+  /// Denormalised name — avoids JOIN at read time for high-traffic endpoints
+  entityName      String
+  /// Final weighted score, 0.0–100.0
+  score           Float
+  /// 1-based dense rank within (entityType, periodType, periodStart)
+  rank            Int
+  /// Full score component breakdown stored as JSON for auditability
+  /// Shape: { verifiedRate, approvalRate, timeScore, assignmentEff,
+  ///          openPenalty, rejectedPenalty, rawMetrics: { ... } }
+  metrics         Json
+  /// Scoring formula version — bump when weights change
+  scoreVersion    String   @default("v1")
+  /// 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ALL_TIME'
+  periodType      String
+  /// Inclusive start of the scoring window
+  periodStart     DateTime
+  /// Inclusive end of the scoring window
+  periodEnd       DateTime
+  /// Groups all snapshots created in one generation run
+  generationBatch String
+  /// False during generation — flipped true atomically for the whole batch
+  isPublished     Boolean  @default(false)
+  generatedAt     DateTime @default(now())
+
+  /// Fast leaderboard page query: entity type + period + published, ordered by rank
+  @@index([entityType, periodType, periodStart, isPublished])
+  /// Entity rank history: all periods for one entity
+  @@index([entityId, entityType, periodType])
+  /// Batch publication: flip isPublished for all rows in one batch
+  @@index([generationBatch])
+  @@map("leaderboard_snapshots")
 }
 
 /// Append-only log of every domain event published by the system.
