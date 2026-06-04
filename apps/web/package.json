@@ -11,16 +11,19 @@
   },
   "dependencies": {
     "@awaaz/config": "workspace:*",
-    "@awaaz/types": "workspace:*",
     "@awaaz/trpc": "workspace:*",
+    "@awaaz/types": "workspace:*",
     "@awaaz/validation": "workspace:*",
     "@tanstack/react-query": "^5.80.6",
     "@trpc/client": "^11.1.2",
     "@trpc/react-query": "^11.1.2",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.17.0",
     "next": "^15.3.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "superjson": "^2.2.2"
+    "superjson": "^2.2.2",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@awaaz/eslint-config": "workspace:*",
