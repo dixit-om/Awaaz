@@ -87,7 +87,10 @@ export class AuthService {
       });
     }
 
-    const valid = verifyOtpHash(otp, phoneNumber, this.pepper, record.otpHash);
+    // In dev mode, "000000" is a magic bypass OTP so developers can log in
+    // without reading the server console every time.
+    const isBypass = this.config.OTP_DEV_MODE && otp === '000000';
+    const valid = isBypass || verifyOtpHash(otp, phoneNumber, this.pepper, record.otpHash);
     if (!valid) {
       await this.repo.incrementOtpAttempts(record.id);
       throw new TRPCError({

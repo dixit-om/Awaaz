@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Phone,
   Edit3,
@@ -14,8 +16,10 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/auth-context';
 
 export default function ProfilePage() {
+  const { logout } = useAuth();
   return (
     <div>
       <PageHeader
@@ -181,7 +185,7 @@ export default function ProfilePage() {
                   Secure
                 </Badge>
               </div>
-              <Button variant="danger" size="sm" className="mt-3 w-full">
+              <Button variant="danger" size="sm" className="mt-3 w-full" onClick={logout}>
                 <LogOut className="h-4 w-4" />
                 Logout
               </Button>

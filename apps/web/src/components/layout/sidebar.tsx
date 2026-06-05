@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/contexts/auth-context';
 import {
   LayoutDashboard,
   Plus,
@@ -74,6 +75,7 @@ interface SidebarProps {
 
 export function Sidebar({ nav, user, showNewReport = false }: SidebarProps) {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-[220px] flex-col overflow-y-auto bg-[#0f172a]">
@@ -143,13 +145,13 @@ export function Sidebar({ nav, user, showNewReport = false }: SidebarProps) {
           <HelpCircle className="h-4 w-4 text-[#64748b]" />
           Help Center
         </Link>
-        <Link
-          href="/login"
-          className="hover:bg-white/6 flex items-center gap-3 rounded-[8px] px-3 py-2.5 text-sm text-[#94a3b8] transition-all duration-200 hover:text-white"
+        <button
+          onClick={logout}
+          className="hover:bg-white/6 flex w-full items-center gap-3 rounded-[8px] px-3 py-2.5 text-sm text-[#94a3b8] transition-all duration-200 hover:text-white"
         >
           <LogOut className="h-4 w-4 text-[#64748b]" />
           Logout
-        </Link>
+        </button>
 
         {/* User */}
         {user && (
