@@ -33,10 +33,14 @@ app.use(
 const server = app.listen(env.SERVER_PORT, () => {
   console.log(`🚀 AWAAZ API server running on ${env.SERVER_URL}/trpc`);
 
-  // Start the BullMQ notification consumer after the HTTP server is ready.
-  // If Redis is unavailable, the worker will log a connection error but the
-  // HTTP server continues to serve requests normally.
-  notificationService.startConsumer();
+  // Only start the BullMQ notification consumer when Redis is explicitly
+  // configured. Without Redis the server still handles all tRPC requests;
+  // only real-time event-driven notifications are unavailable.
+  if (env.REDIS_URL) {
+    notificationService.startConsumer();
+  } else {
+    console.warn('⚠️  REDIS_URL not set — notification consumer disabled (development mode)');
+  }
 });
 
 // ---------------------------------------------------------------------------

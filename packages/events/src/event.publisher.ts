@@ -6,7 +6,7 @@ import type { DomainEvent } from './event.types.js';
 // Queue configuration
 // ---------------------------------------------------------------------------
 
-export const NOTIFICATION_QUEUE_NAME = 'awaaz:notifications';
+export const NOTIFICATION_QUEUE_NAME = 'awaaz-notifications';
 
 const DEFAULT_JOB_OPTIONS = {
   /**

@@ -337,10 +337,21 @@ export function createCloudinaryAdapter(): CloudinaryAdapter {
   const notificationUrl = process.env['CLOUDINARY_WEBHOOK_URL'];
 
   if (!cloudName || !apiKey || !apiSecret) {
-    throw new Error(
-      'Missing Cloudinary credentials. ' +
-        'Required env vars: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET',
-    );
+    if (process.env['NODE_ENV'] === 'production') {
+      throw new Error(
+        'Missing Cloudinary credentials. ' +
+          'Required env vars: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET',
+      );
+    }
+    // In development, return a stub that surfaces a clear error only when
+    // media-upload endpoints are actually called — the server still starts.
+    console.warn('⚠️  Cloudinary credentials not set. Media upload endpoints will be unavailable.');
+    return new CloudinaryAdapter({
+      cloudName: 'dev-placeholder',
+      apiKey: 'dev-placeholder',
+      apiSecret: 'dev-placeholder-secret-32chars-padding',
+      notificationUrl: undefined,
+    });
   }
 
   return new CloudinaryAdapter({
