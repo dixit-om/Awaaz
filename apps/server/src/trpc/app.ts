@@ -1,5 +1,5 @@
 import '../load-env';
-import { createAuthService } from '@awaaz/auth';
+import { createAuthService, createUserService } from '@awaaz/auth';
 import { createComplaintService } from '@awaaz/complaints';
 import { createGeoService } from '@awaaz/geo';
 import { NotificationRepository, createNotificationService } from '@awaaz/notifications';
@@ -14,6 +14,7 @@ import { createAppRouter } from '@awaaz/trpc';
 const env = getServerEnv();
 
 const authService = createAuthService(prisma, getAuthConfig());
+const userService = createUserService(prisma);
 const geoService = createGeoService(prisma);
 
 // GeoService injected into ComplaintService so complaint creation
@@ -55,6 +56,7 @@ const mediaService = createMediaService(mediaRepo, cloudinaryAdapter, mediaEvent
 
 export const appRouter = createAppRouter({
   authService,
+  userService,
   complaintService,
   geoService,
   notificationService,

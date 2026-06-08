@@ -75,7 +75,15 @@ export type PaginatedResponse<T> = {
   meta: PaginationMeta;
 };
 
-export type { AuthUser, JwtAccessPayload, TokenPair, UserProfile } from './auth';
+export type {
+  AuthUser,
+  AdminUser,
+  UserStats,
+  ListUsersResult,
+  JwtAccessPayload,
+  TokenPair,
+  UserProfile,
+} from './auth';
 
 export {
   type AssignmentSource,

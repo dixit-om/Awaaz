@@ -1,4 +1,4 @@
-import type { AuthService } from '@awaaz/auth';
+import type { AuthService, UserService } from '@awaaz/auth';
 import type { ComplaintService } from '@awaaz/complaints';
 import type { GeoService } from '@awaaz/geo';
 import type { NotificationService } from '@awaaz/notifications';
@@ -14,9 +14,11 @@ import { createNotificationsRouter } from './routers/notifications';
 import { createAnalyticsRouter } from './routers/analytics';
 import { createLeaderboardRouter } from './routers/leaderboard';
 import { createMediaRouter } from './routers/media';
+import { createUsersRouter } from './routers/users';
 
 export interface AppServices {
   authService: AuthService;
+  userService: UserService;
   complaintService: ComplaintService;
   geoService: GeoService;
   notificationService: NotificationService;
@@ -33,6 +35,7 @@ export function createAppRouter(services: AppServices) {
   return router({
     health: healthRouter,
     auth: createAuthRouter(services.authService),
+    users: createUsersRouter(services.userService),
     complaints: createComplaintsRouter(services.complaintService),
     geo: createGeoRouter(services.geoService),
     notifications: createNotificationsRouter(services.notificationService),

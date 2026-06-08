@@ -1,6 +1,11 @@
 import type { PrismaClient, User } from '@awaaz/db';
-import type { PrismaUserRole } from '@awaaz/types';
-import { prismaRoleToAppRole, type AuthUser } from '@awaaz/types';
+import type { AdminUser, PrismaUserRole, UserStats } from '@awaaz/types';
+import {
+  prismaRoleToAppRole,
+  appRoleToPrismaRole,
+  type AuthUser,
+  type UserRole,
+} from '@awaaz/types';
 
 function toAuthUser(user: User): AuthUser {
   return {
@@ -10,6 +15,15 @@ function toAuthUser(user: User): AuthUser {
     role: prismaRoleToAppRole(user.role),
     isVerified: user.isVerified,
     reputationScore: user.reputationScore,
+  };
+}
+
+function toAdminUser(user: User): AdminUser {
+  return {
+    ...toAuthUser(user),
+    isActive: user.isActive,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
   };
 }
 
@@ -105,5 +119,74 @@ export class AuthRepository {
     return this.db.refreshToken.deleteMany({
       where: { userId, tokenHash },
     });
+  }
+
+  // ── Admin user management ────────────────────────────────────────────
+
+  async listUsers(params: {
+    page: number;
+    limit: number;
+    role?: UserRole;
+    isActive?: boolean;
+    search?: string;
+  }): Promise<{ users: AdminUser[]; total: number }> {
+    const { page, limit, role, isActive, search } = params;
+    const skip = (page - 1) * limit;
+
+    // Build filter dynamically; cast to avoid wrestling with deep Prisma generics.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (role !== undefined) where.role = appRoleToPrismaRole(role);
+    if (isActive !== undefined) where.isActive = isActive;
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { phoneNumber: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [users, total] = await this.db.$transaction([
+      this.db.user.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
+      this.db.user.count({ where }),
+    ]);
+
+    return { users: users.map(toAdminUser), total };
+  }
+
+  async getAdminUserById(id: string): Promise<AdminUser | null> {
+    const user = await this.db.user.findUnique({ where: { id } });
+    return user ? toAdminUser(user) : null;
+  }
+
+  async updateUserRole(id: string, role: UserRole): Promise<AdminUser> {
+    const user = await this.db.user.update({
+      where: { id },
+      data: { role: appRoleToPrismaRole(role) },
+    });
+    return toAdminUser(user);
+  }
+
+  async setUserActive(id: string, isActive: boolean): Promise<AdminUser> {
+    const user = await this.db.user.update({
+      where: { id },
+      data: { isActive },
+    });
+    return toAdminUser(user);
+  }
+
+  async getUserStats(): Promise<UserStats> {
+    const [total, active, byCitizen, byMla, byAdmin] = await this.db.$transaction([
+      this.db.user.count(),
+      this.db.user.count({ where: { isActive: true } }),
+      this.db.user.count({ where: { role: 'CITIZEN' } }),
+      this.db.user.count({ where: { role: 'MLA' } }),
+      this.db.user.count({ where: { role: 'ADMIN' } }),
+    ]);
+    return {
+      total,
+      active,
+      inactive: total - active,
+      byRole: { citizen: byCitizen, mla: byMla, admin: byAdmin },
+    };
   }
 }

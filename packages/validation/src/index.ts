@@ -108,6 +108,20 @@ export {
 } from './complaints';
 
 // ---------------------------------------------------------------------------
+// Admin — User Management
+// ---------------------------------------------------------------------------
+export {
+  listUsersSchema,
+  adminUserIdSchema,
+  updateUserRoleSchema,
+  setUserActiveSchema,
+  type ListUsersInput,
+  type AdminUserIdInput,
+  type UpdateUserRoleInput,
+  type SetUserActiveInput,
+} from './users';
+
+// ---------------------------------------------------------------------------
 // Phase 7 — Media Upload & Evidence Management
 // ---------------------------------------------------------------------------
 export {

@@ -31,6 +31,7 @@ model User {
   phoneNumber     String   @unique
   role            UserRole @default(CITIZEN)
   isVerified      Boolean  @default(false)
+  isActive        Boolean  @default(true)
   reputationScore Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -52,6 +53,7 @@ model User {
   deletedMedia           MediaAsset[]           @relation("DeletedMedia")
 
   @@index([role])
+  @@index([isActive])
   @@map("users")
 }
 
