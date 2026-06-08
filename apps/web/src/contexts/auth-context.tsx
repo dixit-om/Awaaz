@@ -32,22 +32,24 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  // Start as loading only if there are stored tokens that we need to validate.
   const [user, setUser] = useState<AuthUser | null>(null);
+  // Start loading only if there are tokens to validate.
   const [isLoading, setIsLoading] = useState(() => hasTokens());
 
   const userRef = useRef(user);
   userRef.current = user;
 
-  // ── Token refresh mutation ──────────────────────────────────────────
-  const refreshMutation = trpc.auth.refreshToken.useMutation();
+  // Concurrency guard: prevent overlapping refresh attempts.
+  const isRefreshingRef = useRef(false);
 
-  // ── Logout mutation (fire-and-forget, best-effort) ──────────────────
+  // ── Mutations ─────────────────────────────────────────────────────
+  const refreshMutation = trpc.auth.refreshToken.useMutation();
   const logoutMutation = trpc.auth.logout.useMutation();
+  // Keep stable ref so logout callback never re-creates due to mutation updates.
   const logoutMutRef = useRef(logoutMutation.mutate);
   logoutMutRef.current = logoutMutation.mutate;
 
-  // ── getCurrentUser query ────────────────────────────────────────────
+  // ── getCurrentUser query ─────────────────────────────────────────
   const tokensExist = hasTokens();
   const currentUserQuery = trpc.auth.getCurrentUser.useQuery(undefined, {
     enabled: tokensExist,
@@ -55,7 +57,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     staleTime: 5 * 60 * 1000,
   });
 
-  // React to successful user fetch.
+  // ── Reusable refresh helper ──────────────────────────────────────
+  /**
+   * Attempts to refresh the access token using the stored refresh token.
+   * Concurrency-safe: concurrent calls coalesce into a no-op for the second caller.
+   * Returns true if refresh succeeded, false otherwise.
+   */
+  const tryRefresh = useCallback(async (): Promise<boolean> => {
+    if (isRefreshingRef.current) return false; // already in flight
+    const rt = getRefreshToken();
+    if (!rt) return false;
+
+    isRefreshingRef.current = true;
+    try {
+      const tokens = await refreshMutation.mutateAsync({ refreshToken: rt });
+      setTokens(tokens.accessToken, tokens.refreshToken);
+      return true;
+    } catch {
+      clearTokens();
+      setUser(null);
+      return false;
+    } finally {
+      isRefreshingRef.current = false;
+    }
+  }, []); // refreshMutation.mutateAsync is stable per React Query guarantee
+
+  // ── React to successful user fetch ──────────────────────────────
   useEffect(() => {
     if (currentUserQuery.data) {
       setUser(currentUserQuery.data);
@@ -63,59 +90,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentUserQuery.data]);
 
-  // React to failed user fetch — try a token refresh once.
+  // ── React to failed user fetch — try refresh once ───────────────
   useEffect(() => {
     if (!currentUserQuery.error) return;
-    const rt = getRefreshToken();
-    if (rt) {
-      refreshMutation
-        .mutateAsync({ refreshToken: rt })
-        .then((tokens) => {
-          setTokens(tokens.accessToken, tokens.refreshToken);
-          // Re-fetch user with the new token.
-          void currentUserQuery.refetch();
-        })
-        .catch(() => {
-          clearTokens();
-          setUser(null);
-          setIsLoading(false);
-        });
-    } else {
-      clearTokens();
-      setUser(null);
-      setIsLoading(false);
-    }
-  }, [currentUserQuery.error]); // refreshMutation.mutateAsync is stable (React Query guarantee)
 
-  // If there were no tokens at all on first mount, stop loading immediately.
+    void (async () => {
+      const refreshed = await tryRefresh();
+      if (refreshed) {
+        void currentUserQuery.refetch();
+      } else {
+        setIsLoading(false);
+      }
+    })();
+  }, [currentUserQuery.error]); // tryRefresh and refetch are stable
+
+  // ── No tokens on mount — stop loading immediately ───────────────
   useEffect(() => {
     if (!tokensExist) setIsLoading(false);
-  }, []); // intentional mount-only effect
+  }, []); // intentional mount-only
 
-  // ── Proactive token refresh (every 60 s) ───────────────────────────
+  // ── Proactive token refresh (every 60 s) ────────────────────────
   useEffect(() => {
     const id = setInterval(() => {
       if (!userRef.current) return;
       if (isAccessTokenExpiringSoon(120)) {
-        const rt = getRefreshToken();
-        if (rt) {
-          refreshMutation
-            .mutateAsync({ refreshToken: rt })
-            .then((tokens) => {
-              setTokens(tokens.accessToken, tokens.refreshToken);
-            })
-            .catch(() => {
-              clearTokens();
-              setUser(null);
-              router.push('/login');
-            });
-        }
+        void tryRefresh().then((ok) => {
+          if (!ok && !hasTokens()) {
+            // Refresh failed and all tokens are gone → force logout.
+            setUser(null);
+            router.push('/login');
+          }
+        });
       }
     }, 60_000);
     return () => clearInterval(id);
-  }, []); // intentional mount-only interval; uses refs for stable access
+  }, []); // intentional mount-only interval; stable refs prevent stale closure
 
-  // ── Exposed actions ────────────────────────────────────────────────
+  // ── Exposed actions ──────────────────────────────────────────────
   const login = useCallback((tokens: TokenPair, authUser: AuthUser) => {
     setTokens(tokens.accessToken, tokens.refreshToken);
     setUser(authUser);
@@ -126,6 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const rt = getRefreshToken();
     clearTokens();
     setUser(null);
+    isRefreshingRef.current = false;
     // Best-effort server-side session invalidation.
     if (rt) logoutMutRef.current({ refreshToken: rt });
     router.push('/login');

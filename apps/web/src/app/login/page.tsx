@@ -1,21 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, ChevronRight, Megaphone, Phone, Shield } from 'lucide-react';
 import { TRPCClientError } from '@trpc/client';
 import { Button } from '@/components/ui/button';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 import { useAuth } from '@/contexts/auth-context';
+import { getRoleHome } from '@/lib/role-routes';
 import { trpc } from '@/trpc/client';
-import type { UserRole } from '@awaaz/types';
-
-// ─── Role → home mapping ──────────────────────────────────────────────
-const ROLE_HOME: Record<UserRole, string> = {
-  citizen: '/dashboard',
-  mla: '/mla',
-  admin: '/admin',
-};
 
 type Step = 'phone' | 'otp';
 
@@ -25,10 +19,12 @@ function extractTrpcMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────
-export default function LoginPage() {
+// ─── Inner component (needs Suspense because it calls useSearchParams) ──
+
+function LoginForm() {
   const router = useRouter();
-  const { login, isAuthenticated, user } = useAuth();
+  const searchParams = useSearchParams();
+  const { login, isAuthenticated, isLoading, user } = useAuth();
 
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
@@ -43,9 +39,16 @@ export default function LoginPage() {
   // ── Redirect already-authenticated users ──────────────────────────
   useEffect(() => {
     if (isAuthenticated && user) {
-      router.replace(ROLE_HOME[user.role]);
+      // Honour ?redirect= deep-link; fall back to role home.
+      const redirect = searchParams.get('redirect');
+      const destination = redirect ? decodeURIComponent(redirect) : getRoleHome(user.role);
+      router.replace(destination);
     }
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user, router, searchParams]);
+
+  // ── Show loading screen while session is resolving ────────────────
+  // Prevents the login form flashing briefly before the redirect fires.
+  if (isLoading) return <LoadingScreen message="Verifying session…" />;
 
   // ── Countdown timer ───────────────────────────────────────────────
   function startCountdown(seconds = 45) {
@@ -97,7 +100,10 @@ export default function LoginPage() {
         },
         data.user,
       );
-      router.replace(ROLE_HOME[data.user.role]);
+      // Honour ?redirect= deep-link; fall back to role home.
+      const redirect = searchParams.get('redirect');
+      const destination = redirect ? decodeURIComponent(redirect) : getRoleHome(data.user.role);
+      router.replace(destination);
     },
     onError: (err) => {
       if (err instanceof TRPCClientError) {
@@ -375,5 +381,16 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────
+// Suspense is required by Next.js 15 when useSearchParams is used in a
+// client component during static generation.
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoadingScreen message="Loading…" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

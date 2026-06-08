@@ -1,4 +1,4 @@
-import { Sidebar, CITIZEN_NAV, MLA_NAV } from './sidebar';
+import { Sidebar, ADMIN_NAV, CITIZEN_NAV, MLA_NAV } from './sidebar';
 import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
@@ -8,7 +8,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, role = 'citizen', user }: DashboardLayoutProps) {
-  const nav = role === 'mla' ? MLA_NAV : CITIZEN_NAV;
+  const nav = role === 'mla' ? MLA_NAV : role === 'admin' ? ADMIN_NAV : CITIZEN_NAV;
   const showNewReport = role === 'citizen';
 
   return (
