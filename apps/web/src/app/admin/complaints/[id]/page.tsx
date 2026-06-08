@@ -5,7 +5,7 @@ import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ComplaintDetailView } from '@/components/complaints/complaint-detail-view';
 import { trpc } from '@/trpc/client';
 
-export default function ComplaintDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function AdminComplaintDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const query = trpc.complaints.getComplaintById.useQuery({ id });
 
@@ -23,9 +23,9 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
   return (
     <ComplaintDetailView
       complaint={query.data}
-      role="citizen"
-      backHref="/dashboard/complaints"
-      backLabel="Back to My Complaints"
+      role="admin"
+      backHref="/admin/complaints"
+      backLabel="Back to All Complaints"
       onRefetch={() => void query.refetch()}
     />
   );

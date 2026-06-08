@@ -5,7 +5,6 @@ import {
   Activity,
   AlertCircle,
   CheckCircle2,
-  Clock,
   FileText,
   Shield,
   TrendingUp,
@@ -86,8 +85,11 @@ function SkeletonCard() {
 
 export default function AdminOverviewPage() {
   const statsQuery = trpc.users.getStats.useQuery(undefined, { staleTime: 60_000 });
+  const overviewQuery = trpc.analytics.getOverview.useQuery({}, { staleTime: 60_000 });
   const stats = statsQuery.data;
+  const overview = overviewQuery.data;
   const loading = statsQuery.isLoading;
+  const complaintsLoading = overviewQuery.isLoading;
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
@@ -154,29 +156,31 @@ export default function AdminOverviewPage() {
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
           <StatCard
             label="Total Complaints"
-            value="—"
-            sub="Connect Phase 8.2"
+            value={complaintsLoading ? '…' : (overview?.totalComplaints ?? 0)}
+            sub={`${overview?.openComplaints ?? 0} open`}
             icon={<FileText className="h-5 w-5 text-[#1e40af]" />}
             accent="bg-[#eff6ff]"
+            href="/admin/complaints"
           />
           <StatCard
-            label="Resolution Rate"
-            value="—"
-            sub="Connect Phase 8.2"
+            label="Open Complaints"
+            value={complaintsLoading ? '…' : (overview?.openComplaints ?? 0)}
+            sub={`${overview?.inProgressComplaints ?? 0} in progress`}
+            icon={<AlertCircle className="h-5 w-5 text-[#f59e0b]" />}
+            accent="bg-[#fffbeb]"
+            href="/admin/complaints"
+          />
+          <StatCard
+            label="Resolved"
+            value={complaintsLoading ? '…' : (overview?.resolvedComplaints ?? 0)}
+            sub={`${overview?.resolutionRate?.toFixed(0) ?? 0}% resolution rate`}
             icon={<CheckCircle2 className="h-5 w-5 text-[#22c55e]" />}
             accent="bg-[#f0fdf4]"
           />
           <StatCard
-            label="Avg. Resolution Time"
-            value="—"
-            sub="Connect Phase 8.2"
-            icon={<Clock className="h-5 w-5 text-[#f59e0b]" />}
-            accent="bg-[#fffbeb]"
-          />
-          <StatCard
-            label="Governance Score"
-            value="—"
-            sub="Connect Phase 8.2"
+            label="Verified"
+            value={complaintsLoading ? '…' : (overview?.verifiedComplaints ?? 0)}
+            sub={`${overview?.rejectedComplaints ?? 0} rejected`}
             icon={<TrendingUp className="h-5 w-5 text-[#1e40af]" />}
             accent="bg-[#eff6ff]"
           />

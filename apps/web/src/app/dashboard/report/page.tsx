@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   X,
   Upload,
@@ -16,32 +17,25 @@ import {
   CheckCircle2,
   Shield,
 } from 'lucide-react';
+import { TRPCClientError } from '@trpc/client';
+import type { ComplaintPriority } from '@awaaz/types';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
+import { formatComplaintId } from '@/lib/complaints';
+import { uploadAllComplaintEvidence } from '@/lib/media-upload';
 import { cn } from '@/lib/utils';
+import { trpc } from '@/trpc/client';
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 type Step = 1 | 2 | 3 | 4;
 
 const STEP_LABELS = ['Evidence', 'Location', 'Details', 'Review'];
 
-const CATEGORIES = [
-  {
-    slug: 'garbage',
-    label: 'Garbage Issues',
-    emoji: '🗑️',
-    desc: 'Overflowing bins, illegal dumping',
-  },
-  { slug: 'road', label: 'Road Issues', emoji: '🛣️', desc: 'Potholes, damaged pavement' },
-  { slug: 'water', label: 'Water Problems', emoji: '💧', desc: 'Leaks, supply interruptions' },
-  { slug: 'electricity', label: 'Electricity', emoji: '⚡', desc: 'Outages, damaged lines' },
-  { slug: 'drainage', label: 'Drainage', emoji: '🚰', desc: 'Blocked drains, flooding' },
-  {
-    slug: 'infrastructure',
-    label: 'Infrastructure',
-    emoji: '🏗️',
-    desc: 'Buildings, public facilities',
-  },
+const PRIORITY_OPTIONS: { value: ComplaintPriority; label: string; urgent?: boolean }[] = [
+  { value: 'LOW', label: 'Low' },
+  { value: 'MEDIUM', label: 'Normal' },
+  { value: 'HIGH', label: 'High' },
+  { value: 'URGENT', label: 'Urgent', urgent: true },
 ];
 
 /* ─── Step Indicator ────────────────────────────────────────────────── */
@@ -93,16 +87,31 @@ function StepIndicator({ current }: { current: Step }) {
 
 /* ─── Page ──────────────────────────────────────────────────────────── */
 export default function ReportPage() {
+  const router = useRouter();
+  const categoriesQuery = trpc.complaints.listCategories.useQuery();
+  const createMutation = trpc.complaints.createComplaint.useMutation();
+  const createUploadMutation = trpc.media.createUploadRequest.useMutation();
+  const confirmUploadMutation = trpc.media.confirmUpload.useMutation();
+
   const [step, setStep] = useState<Step>(1);
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [location, setLocation] = useState('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [locating, setLocating] = useState(false);
-  const [category, setCategory] = useState('');
+  const [locationError, setLocationError] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<'normal' | 'urgent'>('normal');
-  const [submitted, setSubmitted] = useState(false);
+  const [priority, setPriority] = useState<ComplaintPriority>('MEDIUM');
+  const [formError, setFormError] = useState('');
+  const [submittedId, setSubmittedId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const [mediaUploadWarning, setMediaUploadWarning] = useState('');
+
+  const categories = categoriesQuery.data ?? [];
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -123,17 +132,89 @@ export default function ReportPage() {
 
   function autoDetect() {
     setLocating(true);
-    setTimeout(() => {
-      setLocation('Sector 14, MG Road, Gurgaon, Haryana 122001');
+    setLocationError('');
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser.');
       setLocating(false);
-    }, 1500);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatitude(pos.coords.latitude);
+        setLongitude(pos.coords.longitude);
+        setLocation(`${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`);
+        setLocating(false);
+      },
+      () => {
+        setLocationError('Unable to detect location. Please enter coordinates manually.');
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
   }
 
-  function handleSubmit() {
-    setSubmitted(true);
+  function validateDetails(): string | null {
+    if (!categoryId) return 'Please select a category.';
+    if (title.trim().length < 5) return 'Title must be at least 5 characters.';
+    if (description.trim().length < 20) return 'Description must be at least 20 characters.';
+    if (latitude === null || longitude === null) return 'Location is required.';
+    return null;
   }
 
-  if (submitted) {
+  async function handleSubmit() {
+    const err = validateDetails();
+    if (err) {
+      setFormError(err);
+      return;
+    }
+    setFormError('');
+    setMediaUploadWarning('');
+    setIsSubmitting(true);
+    setUploadProgress('Submitting complaint…');
+
+    try {
+      const complaint = await createMutation.mutateAsync({
+        title: title.trim(),
+        description: description.trim(),
+        categoryId,
+        latitude: latitude!,
+        longitude: longitude!,
+        address: location.trim() || undefined,
+        priority,
+        isPublic: true,
+      });
+
+      if (files.length > 0) {
+        setUploadProgress(`Uploading evidence (0/${files.length})…`);
+        const { uploaded, failed } = await uploadAllComplaintEvidence(
+          complaint.id,
+          files,
+          {
+            createUploadRequest: (input) => createUploadMutation.mutateAsync(input),
+            confirmUpload: (input) => confirmUploadMutation.mutateAsync(input),
+          },
+          (done, total) => setUploadProgress(`Uploading evidence (${done}/${total})…`),
+        );
+
+        if (failed.length > 0) {
+          setMediaUploadWarning(
+            uploaded > 0
+              ? `${uploaded} of ${files.length} files uploaded. Failed: ${failed.join('; ')}`
+              : `Evidence upload failed: ${failed.join('; ')}`,
+          );
+        }
+      }
+
+      setSubmittedId(complaint.id);
+    } catch (e) {
+      setFormError(e instanceof TRPCClientError ? e.message : 'Failed to submit complaint.');
+    } finally {
+      setIsSubmitting(false);
+      setUploadProgress('');
+    }
+  }
+
+  if (submittedId) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] p-6">
         <div className="w-full max-w-md rounded-2xl border border-[#e2e8f0] bg-white p-10 text-center shadow-lg">
@@ -144,25 +225,38 @@ export default function ReportPage() {
           <p className="mt-2 text-sm leading-relaxed text-[#64748b]">
             Your complaint has been registered. You&apos;ll receive updates via notifications.
           </p>
+          {mediaUploadWarning && (
+            <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              {mediaUploadWarning}
+            </p>
+          )}
           <div className="mt-4 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
             <p className="text-xs text-[#94a3b8]">Complaint ID</p>
-            <p className="mt-1 text-lg font-bold text-[#1e40af]">#AWZ-04825</p>
+            <p className="mt-1 text-lg font-bold text-[#1e40af]">
+              {formatComplaintId(submittedId)}
+            </p>
           </div>
           <div className="mt-6 flex gap-3">
-            <Link href={`/dashboard/complaints/#AWZ-04825`} className="flex-1">
-              <Button className="w-full">Track Complaint</Button>
-            </Link>
+            <Button
+              className="flex-1"
+              onClick={() => router.push(`/dashboard/complaints/${submittedId}`)}
+            >
+              Track Complaint
+            </Button>
             <Button
               variant="outline"
               className="flex-1"
               onClick={() => {
-                setSubmitted(false);
+                setSubmittedId(null);
+                setMediaUploadWarning('');
                 setStep(1);
                 setFiles([]);
-                setCategory('');
+                setCategoryId('');
                 setTitle('');
                 setDescription('');
                 setLocation('');
+                setLatitude(null);
+                setLongitude(null);
               }}
             >
               Report Another
@@ -333,11 +427,12 @@ export default function ReportPage() {
                 </div>
               </div>
 
-              {location && (
+              {locationError && <p className="mt-3 text-sm text-[#dc2626]">{locationError}</p>}
+              {latitude !== null && longitude !== null && (
                 <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3">
                   <p className="text-xs font-medium text-[#1e40af]">📍 {location}</p>
                   <p className="mt-1 text-[10px] text-[#64748b]">
-                    Constituency: Gurgaon · MLA: Suresh Gupta
+                    Coordinates: {latitude.toFixed(5)}, {longitude.toFixed(5)}
                   </p>
                 </div>
               )}
@@ -357,7 +452,10 @@ export default function ReportPage() {
                   <ArrowLeft className="h-4 w-4" />
                   Back
                 </Button>
-                <Button onClick={() => setStep(3)}>
+                <Button
+                  onClick={() => setStep(3)}
+                  disabled={latitude === null || longitude === null}
+                >
                   Continue
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -377,20 +475,22 @@ export default function ReportPage() {
               <div className="mt-6">
                 <p className="mb-3 text-sm font-medium text-[#0f172a]">What type of issue?</p>
                 <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                  {CATEGORIES.map((cat) => (
+                  {categoriesQuery.isLoading && (
+                    <p className="col-span-full text-sm text-[#94a3b8]">Loading categories…</p>
+                  )}
+                  {categories.map((cat) => (
                     <button
-                      key={cat.slug}
-                      onClick={() => setCategory(cat.slug)}
+                      key={cat.id}
+                      onClick={() => setCategoryId(cat.id)}
                       className={cn(
                         'rounded-xl border p-3 text-left transition-all hover:-translate-y-0.5',
-                        category === cat.slug
+                        categoryId === cat.id
                           ? 'border-[#1e40af] bg-blue-50 shadow-sm'
                           : 'border-[#e2e8f0] hover:border-[#1e40af]/40 hover:bg-[#f8fafc]',
                       )}
                     >
-                      <div className="mb-1 text-xl">{cat.emoji}</div>
-                      <p className="text-xs font-semibold text-[#0f172a]">{cat.label}</p>
-                      <p className="mt-0.5 text-[10px] text-[#94a3b8]">{cat.desc}</p>
+                      <div className="mb-1 text-xl">{cat.icon ?? '📋'}</div>
+                      <p className="text-xs font-semibold text-[#0f172a]">{cat.name}</p>
                     </button>
                   ))}
                 </div>
@@ -410,45 +510,73 @@ export default function ReportPage() {
               {/* Description */}
               <div className="mt-4">
                 <Textarea
-                  label="Description (optional)"
+                  label="Description"
                   placeholder="Describe the problem in detail — how long has this been here? Who does it affect?"
                   value={description}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                     setDescription(e.target.value)
                   }
+                  hint={
+                    description.trim().length < 20
+                      ? `${description.trim().length}/20 characters minimum`
+                      : undefined
+                  }
                 />
+                {description.trim().length > 0 && description.trim().length < 20 && (
+                  <p className="mt-1.5 text-xs text-[#dc2626]">
+                    Description must be at least 20 characters ({20 - description.trim().length}{' '}
+                    more needed)
+                  </p>
+                )}
               </div>
 
               {/* Priority */}
               <div className="mt-4">
                 <p className="mb-2 text-sm font-medium text-[#0f172a]">Priority</p>
-                <div className="flex gap-2">
-                  {(['normal', 'urgent'] as const).map((p) => (
+                <div className="flex flex-wrap gap-2">
+                  {PRIORITY_OPTIONS.map((p) => (
                     <button
-                      key={p}
-                      onClick={() => setPriority(p)}
+                      key={p.value}
+                      onClick={() => setPriority(p.value)}
                       className={cn(
                         'flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-all',
-                        priority === p
-                          ? p === 'urgent'
+                        priority === p.value
+                          ? p.urgent
                             ? 'border-red-400 bg-red-50 text-red-600'
                             : 'border-[#1e40af] bg-blue-50 text-[#1e40af]'
                           : 'border-[#e2e8f0] text-[#64748b] hover:bg-[#f8fafc]',
                       )}
                     >
-                      {p === 'urgent' && <AlertTriangle className="h-3.5 w-3.5" />}
-                      {p === 'normal' ? 'Normal' : 'Urgent'}
+                      {p.urgent && <AlertTriangle className="h-3.5 w-3.5" />}
+                      {p.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-6 flex justify-between border-t border-[#f1f5f9] pt-4">
+              {(!categoryId || title.trim().length < 5 || description.trim().length < 20) && (
+                <p className="mt-4 text-xs text-[#94a3b8]">
+                  To continue: {!categoryId && 'select a category'}
+                  {!categoryId &&
+                    (title.trim().length < 5 || description.trim().length < 20) &&
+                    ', '}
+                  {title.trim().length < 5 && 'enter a title (min 5 characters)'}
+                  {title.trim().length < 5 && description.trim().length < 20 && ', '}
+                  {description.trim().length < 20 && 'write a description (min 20 characters)'}
+                </p>
+              )}
+
+              <div className="mt-4 flex justify-between border-t border-[#f1f5f9] pt-4">
                 <Button variant="outline" onClick={() => setStep(2)}>
                   <ArrowLeft className="h-4 w-4" />
                   Back
                 </Button>
-                <Button onClick={() => setStep(4)} disabled={!category || !title}>
+                <Button
+                  onClick={() => setStep(4)}
+                  disabled={
+                    !categoryId || title.trim().length < 5 || description.trim().length < 20
+                  }
+                >
                   Review
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -467,11 +595,11 @@ export default function ReportPage() {
                 <div className="space-y-3 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
                   <div className="flex items-start gap-3">
                     <span className="text-2xl">
-                      {CATEGORIES.find((c) => c.slug === category)?.emoji ?? '📋'}
+                      {categories.find((c) => c.id === categoryId)?.icon ?? '📋'}
                     </span>
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wide text-[#94a3b8]">
-                        {CATEGORIES.find((c) => c.slug === category)?.label ?? 'Uncategorized'}
+                        {categories.find((c) => c.id === categoryId)?.name ?? 'Uncategorized'}
                       </p>
                       <p className="mt-0.5 text-base font-semibold text-[#0f172a]">
                         {title || 'Untitled complaint'}
@@ -489,12 +617,13 @@ export default function ReportPage() {
                     <span
                       className={cn(
                         'rounded-full px-2 py-0.5 text-xs font-medium',
-                        priority === 'urgent'
+                        priority === 'URGENT' || priority === 'HIGH'
                           ? 'bg-red-50 text-red-600'
                           : 'bg-blue-50 text-[#1e40af]',
                       )}
                     >
-                      {priority === 'urgent' ? '⚡ Urgent' : 'Normal priority'}
+                      {PRIORITY_OPTIONS.find((p) => p.value === priority)?.label ?? priority}{' '}
+                      priority
                     </span>
                     {files.length > 0 && (
                       <span className="text-xs text-[#64748b]">
@@ -518,12 +647,14 @@ export default function ReportPage() {
                 </label>
               </div>
 
+              {formError && <p className="mt-4 text-sm text-[#dc2626]">{formError}</p>}
+              {uploadProgress && <p className="mt-4 text-sm text-[#1e40af]">{uploadProgress}</p>}
               <div className="mt-6 flex justify-between border-t border-[#f1f5f9] pt-4">
-                <Button variant="outline" onClick={() => setStep(3)}>
+                <Button variant="outline" onClick={() => setStep(3)} disabled={isSubmitting}>
                   <ArrowLeft className="h-4 w-4" />
                   Back
                 </Button>
-                <Button onClick={handleSubmit} variant="accent">
+                <Button onClick={() => void handleSubmit()} variant="accent" loading={isSubmitting}>
                   Submit Report
                   <CheckCircle2 className="h-4 w-4" />
                 </Button>

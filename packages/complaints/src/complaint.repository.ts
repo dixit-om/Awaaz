@@ -215,6 +215,14 @@ export class ComplaintRepository {
             },
           }
         : {}),
+      ...(filters.search
+        ? {
+            OR: [
+              { title: { contains: filters.search, mode: 'insensitive' } },
+              { description: { contains: filters.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
     };
 
     const [rows, total] = await this.db.$transaction([

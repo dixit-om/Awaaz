@@ -122,6 +122,8 @@ export const listComplaintsSchema = z.object({
   status: z.enum(COMPLAINT_STATUS).optional(),
   categoryId: cuidSchema.optional(),
   priority: z.enum(COMPLAINT_PRIORITY).optional(),
+  /** Full-text search on title or description */
+  search: z.string().trim().max(100).optional(),
   fromDate: z.coerce.date().optional(),
   toDate: z.coerce.date().optional(),
 });

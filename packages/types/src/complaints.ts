@@ -193,6 +193,7 @@ export type ListComplaintsInput = {
   status?: ComplaintStatus;
   categoryId?: string;
   priority?: ComplaintPriority;
+  search?: string;
   fromDate?: Date;
   toDate?: Date;
 };

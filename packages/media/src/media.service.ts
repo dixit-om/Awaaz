@@ -38,10 +38,12 @@ import {
   MAX_BYTES_BY_MEDIA_TYPE,
   CLOUDINARY_ALLOWED_IMAGE_FORMATS,
   CLOUDINARY_ALLOWED_VIDEO_FORMATS,
+  CLOUDINARY_UPLOAD_PRESET,
   VIDEO_EAGER_TRANSFORMATIONS,
   buildCloudinaryFolder,
   buildCloudinaryPublicId,
 } from './media.constants.js';
+import { toCloudinaryResourceType } from './media.utils.js';
 import {
   isFileSizeAllowed,
   isMimeConsistentWithMediaType,
@@ -197,6 +199,8 @@ export class MediaService {
       ...(input.sha256HashEarly ? { sha256Hash: normaliseSha256(input.sha256HashEarly) } : {}),
     });
 
+    const resourceType = toCloudinaryResourceType(input.mediaType);
+
     return {
       mediaAssetId: assetId,
       uploadUrl: uploadParams.uploadUrl,
@@ -206,6 +210,13 @@ export class MediaService {
       publicId: uploadParams.publicId,
       folder: uploadParams.folder,
       cloudProvider: uploadParams.cloudProvider,
+      uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+      allowedFormats:
+        input.mediaType === 'IMAGE'
+          ? CLOUDINARY_ALLOWED_IMAGE_FORMATS
+          : CLOUDINARY_ALLOWED_VIDEO_FORMATS,
+      resourceType,
+      maxBytes: MAX_BYTES_BY_MEDIA_TYPE[input.mediaType],
     };
   }
 

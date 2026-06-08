@@ -249,6 +249,14 @@ export type CreateUploadRequestResult = {
   folder: string;
   /** Cloud provider this signature is valid for. */
   cloudProvider: CloudProvider;
+  /** Cloudinary upload preset — must be sent verbatim in the signed upload. */
+  uploadPreset: string;
+  /** Comma-separated allowed formats — must match the server signature. */
+  allowedFormats: string;
+  /** Cloudinary resource type: `image` or `video`. */
+  resourceType: 'image' | 'video';
+  /** Max bytes included in the signature, if any. */
+  maxBytes?: number;
 };
 
 /** Returned by `media.confirmUpload`. */
