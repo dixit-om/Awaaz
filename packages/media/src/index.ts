@@ -13,6 +13,7 @@ export * from './media.utils';
 export {
   CloudinaryAdapter,
   createCloudinaryAdapter,
+  verifyCloudinaryConnectivity,
   verifyCloudinaySignatureAlgorithm,
   type CloudinaryAdapterConfig,
 } from './adapters/cloudinary.adapter';

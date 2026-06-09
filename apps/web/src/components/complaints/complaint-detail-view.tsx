@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ArrowLeft, Camera, CheckCircle2, ExternalLink, MapPin } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, MapPin } from 'lucide-react';
 import { TRPCClientError } from '@trpc/client';
 import type { ComplaintDetail, UserRole } from '@awaaz/types';
 import { Badge, statusToBadgeVariant } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
 import { ComplaintTimeline } from '@/components/complaints/complaint-timeline';
+import { MediaGallery } from '@/components/media/media-gallery';
 import { StatusUpdateModal } from '@/components/complaints/status-update-modal';
 import {
   PRIORITY_LABELS,
@@ -117,33 +118,7 @@ export function ComplaintDetailView({
             <CardHeader>
               <CardTitle>Evidence</CardTitle>
             </CardHeader>
-            {complaint.media.filter((m) => m.secureUrl && m.status === 'READY').length > 0 ? (
-              <div className="grid grid-cols-3 gap-2">
-                {complaint.media
-                  .filter((m) => m.secureUrl && m.status === 'READY')
-                  .map((m) => (
-                    <a
-                      key={m.id}
-                      href={m.secureUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-[#e2e8f0] bg-[#f8fafc]"
-                    >
-                      {m.thumbnailUrl ? (
-                        <div
-                          className="h-full w-full bg-cover bg-center"
-                          style={{ backgroundImage: `url(${m.thumbnailUrl})` }}
-                        />
-                      ) : (
-                        <Camera className="h-6 w-6 text-[#94a3b8]" />
-                      )}
-                      <ExternalLink className="absolute right-2 top-2 h-4 w-4 text-white opacity-0 transition-opacity group-hover:opacity-100" />
-                    </a>
-                  ))}
-              </div>
-            ) : (
-              <p className="py-4 text-center text-sm text-[#94a3b8]">No evidence uploaded yet.</p>
-            )}
+            <MediaGallery complaintId={complaint.id} />
           </Card>
 
           <Card>

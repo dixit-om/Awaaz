@@ -110,6 +110,25 @@ export class CloudinaryAdapter implements CloudProviderAdapter {
     });
   }
 
+  /**
+   * Verifies API credentials by calling Cloudinary's Admin API ping endpoint.
+   * Does not upload or mutate any assets.
+   */
+  async ping(): Promise<void> {
+    try {
+      const result = (await cloudinary.api.ping()) as { status?: string };
+      if (result.status !== 'ok') {
+        throw new Error(`Unexpected ping response: ${result.status ?? 'unknown'}`);
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : ((err as { error?: { message?: string } })?.error?.message ?? 'Cloudinary API error');
+      throw new Error(`Cloudinary connectivity check failed: ${message}`);
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // generateUploadParams
   //
@@ -135,13 +154,15 @@ export class CloudinaryAdapter implements CloudProviderAdapter {
     // Build the params object that will be signed.
     // All params included here MUST be sent by the client unchanged —
     // Cloudinary rejects uploads where signed params are modified.
+    //
+    // Notes:
+    //   • public_id already embeds the folder path — do not also sign `folder`.
+    //   • max_bytes is enforced by the upload preset — exclude from signature when preset is set.
     const signableParams = {
       timestamp,
       public_id: publicId,
-      folder: options.folder,
       allowed_formats:
         options.mediaType === 'IMAGE' ? 'jpg,jpeg,png,webp,heic,heif' : 'mp4,mov,webm,3gp',
-      ...(options.maxBytes ? { max_bytes: options.maxBytes } : {}),
       upload_preset: CLOUDINARY_UPLOAD_PRESET,
       ...(options.eagerTransformations ? { eager: options.eagerTransformations } : {}),
       ...((options.notificationUrl ?? this.config.notificationUrl)
@@ -354,12 +375,38 @@ export function createCloudinaryAdapter(): CloudinaryAdapter {
     });
   }
 
+  // Safe startup confirmation — log cloud name + preset only, never secrets.
+  console.log(
+    `✓ Cloudinary Config Loaded (cloud: ${cloudName}, preset: ${CLOUDINARY_UPLOAD_PRESET})`,
+  );
+
   return new CloudinaryAdapter({
     cloudName,
     apiKey,
     apiSecret,
     notificationUrl,
   });
+}
+
+/**
+ * Standalone connectivity check — validates credentials against Cloudinary's Admin API.
+ * Safe to run from a script; logs cloud name only, never secrets.
+ */
+export async function verifyCloudinaryConnectivity(): Promise<void> {
+  const cloudName = process.env['CLOUDINARY_CLOUD_NAME'];
+  const apiKey = process.env['CLOUDINARY_API_KEY'];
+  const apiSecret = process.env['CLOUDINARY_API_SECRET'];
+
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error(
+      'Missing Cloudinary credentials. ' +
+        'Required env vars: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET',
+    );
+  }
+
+  const adapter = new CloudinaryAdapter({ cloudName, apiKey, apiSecret });
+  await adapter.ping();
+  console.log(`✓ Cloudinary connectivity OK (cloud: ${cloudName})`);
 }
 
 // ---------------------------------------------------------------------------

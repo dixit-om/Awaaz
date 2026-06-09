@@ -298,6 +298,28 @@ export class MediaRepository {
   }
 
   /**
+   * Find an in-flight UPLOADING asset for the same complaint + hash + owner.
+   * Used to re-issue credentials when confirmUpload failed but the DB row exists.
+   */
+  async findUploadingByHash(
+    complaintId: string,
+    sha256Hash: string,
+    uploadedById: string,
+  ): Promise<MediaAssetDTO | null> {
+    const row = await this.db.mediaAsset.findFirst({
+      where: {
+        complaintId,
+        sha256Hash,
+        uploadedById,
+        deletedAt: null,
+        status: 'UPLOADING',
+      },
+      select: assetFullSelect,
+    });
+    return row ? toDTO(row) : null;
+  }
+
+  /**
    * Fetch the complaint's current status (and citizen id for ownership check).
    * Used by the service layer to enforce UPLOAD_ALLOWED_STATUSES.
    */

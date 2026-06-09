@@ -34,7 +34,12 @@ export const complaintDescriptionSchema = z
   .min(20, 'Description must be at least 20 characters')
   .max(5000, 'Description must not exceed 5000 characters');
 
-export const cuidSchema = z.string().cuid('Invalid ID format');
+/** Prisma uses CUID v1; some services use CUID2 — accept both. */
+export const cuidSchema = z
+  .string()
+  .refine((id) => z.string().cuid().safeParse(id).success || /^[a-z][a-z0-9]{23,31}$/.test(id), {
+    message: 'Invalid ID format',
+  });
 
 // ---------------------------------------------------------------------------
 // Media

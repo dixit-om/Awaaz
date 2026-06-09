@@ -16,6 +16,7 @@
  */
 import { TRPCError } from '@trpc/server';
 import { createId } from '@paralleldrive/cuid2';
+import cuid from 'cuid';
 import type { AuthUser, CloudProviderAdapter } from '@awaaz/types';
 import type {
   CreateUploadRequestInput,
@@ -150,6 +151,11 @@ export class MediaService {
     // ── Early duplicate detection (if hash provided) ───────────────────────
     if (input.sha256HashEarly) {
       const normHash = normaliseSha256(input.sha256HashEarly);
+      const inFlight = await this.repo.findUploadingByHash(input.complaintId, normHash, user.id);
+      if (inFlight) {
+        return this.issueUploadCredentials(inFlight, input.mediaType);
+      }
+
       const isDuplicate = await this.repo.existsByHash(input.complaintId, normHash);
       if (isDuplicate) {
         throw new TRPCError({
@@ -160,31 +166,14 @@ export class MediaService {
     }
 
     // ── Generate asset id + upload session token ───────────────────────────
-    // Pre-generate the asset id so it can be embedded in the Cloudinary publicId.
-    // This makes the asset traceable from the Cloudinary dashboard without a DB lookup.
-    const assetId = createId();
-    const pendingUploadToken = createId();
+    // Use CUID v1 (Prisma-compatible) — must pass confirmUpload Zod validation.
+    const assetId = cuid();
+    const pendingUploadToken = cuid();
 
-    const folder = buildCloudinaryFolder(input.complaintId);
     const publicId = buildCloudinaryPublicId(input.complaintId, assetId);
 
-    const allowedFormats =
-      input.mediaType === 'IMAGE'
-        ? CLOUDINARY_ALLOWED_IMAGE_FORMATS
-        : CLOUDINARY_ALLOWED_VIDEO_FORMATS;
-
-    // ── Generate signed upload params (server-side only) ───────────────────
-    const uploadParams = await this.cloudAdapter.generateUploadParams(publicId, {
-      folder,
-      mediaType: input.mediaType,
-      maxBytes: MAX_BYTES_BY_MEDIA_TYPE[input.mediaType],
-      allowedFormats,
-      // Video: request eager transcoding + thumbnail on Cloudinary's servers
-      ...(input.mediaType === 'VIDEO' ? { eagerTransformations: VIDEO_EAGER_TRANSFORMATIONS } : {}),
-    });
-
     // ── Persist the pending upload record ─────────────────────────────────
-    await this.repo.createAsset({
+    const asset = await this.repo.createAsset({
       id: assetId,
       complaintId: input.complaintId,
       uploadedById: user.id,
@@ -199,10 +188,29 @@ export class MediaService {
       ...(input.sha256HashEarly ? { sha256Hash: normaliseSha256(input.sha256HashEarly) } : {}),
     });
 
-    const resourceType = toCloudinaryResourceType(input.mediaType);
+    return this.issueUploadCredentials(asset, input.mediaType);
+  }
+
+  /** Build signed Cloudinary upload credentials for a pending MediaAsset. */
+  private async issueUploadCredentials(
+    asset: MediaAssetDTO,
+    mediaType: CreateUploadRequestInput['mediaType'],
+  ): Promise<CreateUploadRequestResult> {
+    const allowedFormats =
+      mediaType === 'IMAGE' ? CLOUDINARY_ALLOWED_IMAGE_FORMATS : CLOUDINARY_ALLOWED_VIDEO_FORMATS;
+
+    const uploadParams = await this.cloudAdapter.generateUploadParams(asset.publicId, {
+      folder: buildCloudinaryFolder(asset.complaintId),
+      mediaType,
+      maxBytes: MAX_BYTES_BY_MEDIA_TYPE[mediaType],
+      allowedFormats,
+      ...(mediaType === 'VIDEO' ? { eagerTransformations: VIDEO_EAGER_TRANSFORMATIONS } : {}),
+    });
+
+    const resourceType = toCloudinaryResourceType(mediaType);
 
     return {
-      mediaAssetId: assetId,
+      mediaAssetId: asset.id,
       uploadUrl: uploadParams.uploadUrl,
       apiKey: uploadParams.apiKey,
       signature: uploadParams.signature,
@@ -211,12 +219,9 @@ export class MediaService {
       folder: uploadParams.folder,
       cloudProvider: uploadParams.cloudProvider,
       uploadPreset: CLOUDINARY_UPLOAD_PRESET,
-      allowedFormats:
-        input.mediaType === 'IMAGE'
-          ? CLOUDINARY_ALLOWED_IMAGE_FORMATS
-          : CLOUDINARY_ALLOWED_VIDEO_FORMATS,
+      allowedFormats,
       resourceType,
-      maxBytes: MAX_BYTES_BY_MEDIA_TYPE[input.mediaType],
+      maxBytes: MAX_BYTES_BY_MEDIA_TYPE[mediaType],
     };
   }
 
@@ -312,21 +317,26 @@ export class MediaService {
     }
 
     // ── Publish MEDIA_UPLOADED event (fire-and-forget) ────────────────────
-    await this.events?.publish(
-      buildEvent(
-        EVENT_TYPE.MEDIA_UPLOADED,
-        {
-          mediaAssetId: confirmed.id,
-          complaintId: confirmed.complaintId,
-          uploadedById: confirmed.uploadedById,
-          mediaType: confirmed.mediaType,
-          mimeType: confirmed.mimeType,
-          sizeBytes: confirmed.sizeBytes,
-          sha256Hash: confirmed.sha256Hash,
-        },
-        createId(),
-      ),
-    );
+    // Never block the HTTP response on Redis — evidence is already persisted.
+    void this.events
+      ?.publish(
+        buildEvent(
+          EVENT_TYPE.MEDIA_UPLOADED,
+          {
+            mediaAssetId: confirmed.id,
+            complaintId: confirmed.complaintId,
+            uploadedById: confirmed.uploadedById,
+            mediaType: confirmed.mediaType,
+            mimeType: confirmed.mimeType,
+            sizeBytes: confirmed.sizeBytes,
+            sha256Hash: confirmed.sha256Hash,
+          },
+          createId(),
+        ),
+      )
+      .catch((err) => {
+        console.error('[MediaService] Failed to publish MEDIA_UPLOADED event:', err);
+      });
 
     return { asset: confirmed };
   }
@@ -452,19 +462,23 @@ export class MediaService {
     }
 
     // ── Publish MEDIA_DELETED event (fire-and-forget) ─────────────────────
-    await this.events?.publish(
-      buildEvent(
-        EVENT_TYPE.MEDIA_DELETED,
-        {
-          mediaAssetId: deleted.id,
-          complaintId: deleted.complaintId,
-          deletedById: user.id,
-          mediaType: deleted.mediaType,
-          reason: isAdmin ? 'admin_removal' : 'citizen_request',
-        },
-        createId(),
-      ),
-    );
+    void this.events
+      ?.publish(
+        buildEvent(
+          EVENT_TYPE.MEDIA_DELETED,
+          {
+            mediaAssetId: deleted.id,
+            complaintId: deleted.complaintId,
+            deletedById: user.id,
+            mediaType: deleted.mediaType,
+            reason: isAdmin ? 'admin_removal' : 'citizen_request',
+          },
+          createId(),
+        ),
+      )
+      .catch((err) => {
+        console.error('[MediaService] Failed to publish MEDIA_DELETED event:', err);
+      });
 
     return { success: true, assetId: deleted.id };
   }

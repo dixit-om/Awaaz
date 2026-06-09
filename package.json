@@ -18,6 +18,8 @@
     "db:migrate": "pnpm --filter @awaaz/db db:migrate",
     "db:studio": "pnpm --filter @awaaz/db db:studio",
     "db:seed": "pnpm --filter @awaaz/db db:seed",
+    "cloudinary:test": "pnpm --filter @awaaz/server cloudinary:test",
+    "cloudinary:upload-test": "pnpm --filter @awaaz/server cloudinary:upload-test",
     "prepare": "husky"
   },
   "devDependencies": {

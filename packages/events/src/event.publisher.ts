@@ -100,9 +100,12 @@ export class EventPublisher {
 
     // 2. Enqueue BullMQ job — use eventId as jobId for idempotency
     try {
-      const job = await this.queue.add(event.eventType, event, {
-        jobId: event.eventId,
-      });
+      const job = await Promise.race([
+        this.queue.add(event.eventType, event, { jobId: event.eventId }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Redis enqueue timeout')), 5_000),
+        ),
+      ]);
 
       // 3. Update EventLog with the resolved BullMQ job id
       await this.db.eventLog.update({

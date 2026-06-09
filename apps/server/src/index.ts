@@ -2,12 +2,19 @@ import './load-env';
 import cors from 'cors';
 import express from 'express';
 import * as trpcExpress from '@trpc/server/adapters/express';
-import { getClientEnv, getServerEnv } from '@awaaz/config';
+import { getAuthConfig, getClientEnv, getServerEnv } from '@awaaz/config';
 import { appRouter, notificationService } from './trpc/app';
 import { createContext } from './trpc/context';
 
 const env = getServerEnv();
 const clientEnv = getClientEnv();
+const authConfig = getAuthConfig();
+
+if (authConfig.OTP_DEV_MODE) {
+  console.log(
+    '✓ OTP dev mode — codes print as [AWAAZ OTP] <phone> → <code> in this terminal (bypass: 000000)',
+  );
+}
 const app = express();
 
 app.use(

@@ -6,7 +6,7 @@ export class ConsoleOtpSender implements OtpSender {
 
   async send(phoneNumber: string, otp: string): Promise<void> {
     if (this.config.OTP_DEV_MODE) {
-      console.info(`[AWAAZ OTP] ${phoneNumber} → ${otp}`);
+      console.log(`[AWAAZ OTP] ${phoneNumber} → ${otp}`);
       return;
     }
     // Phase 1.5: integrate MSG91 / Twilio

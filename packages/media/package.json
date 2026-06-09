@@ -21,7 +21,8 @@
     "@paralleldrive/cuid2": "^3.3.0",
     "@prisma/client": "^6.19.3",
     "@trpc/server": "^11.1.2",
-    "cloudinary": "^2.10.0"
+    "cloudinary": "^2.10.0",
+    "cuid": "^3.0.0"
   },
   "devDependencies": {
     "@awaaz/eslint-config": "workspace:*",

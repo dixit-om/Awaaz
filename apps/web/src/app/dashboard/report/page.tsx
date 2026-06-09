@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -22,12 +22,28 @@ import type { ComplaintPriority } from '@awaaz/types';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { formatComplaintId } from '@/lib/complaints';
-import { uploadAllComplaintEvidence } from '@/lib/media-upload';
+import {
+  MAX_EVIDENCE_FILES,
+  validateEvidenceFile,
+  validateEvidenceSelection,
+} from '@/lib/media-validation';
+import {
+  retryComplaintEvidenceUploads,
+  uploadAllComplaintEvidence,
+  type UploadFailure,
+} from '@/lib/media-upload';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/trpc/client';
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 type Step = 1 | 2 | 3 | 4;
+
+type SelectedFile = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  error?: string;
+};
 
 const STEP_LABELS = ['Evidence', 'Location', 'Details', 'Review'];
 
@@ -94,8 +110,9 @@ export default function ReportPage() {
   const confirmUploadMutation = trpc.media.confirmUpload.useMutation();
 
   const [step, setStep] = useState<Step>(1);
-  const [files, setFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [filePickerError, setFilePickerError] = useState('');
   const [location, setLocation] = useState('');
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
@@ -109,25 +126,73 @@ export default function ReportPage() {
   const [submittedId, setSubmittedId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
+  const [uploadPercent, setUploadPercent] = useState(0);
   const [mediaUploadWarning, setMediaUploadWarning] = useState('');
+  const [failedUploads, setFailedUploads] = useState<UploadFailure[]>([]);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const categories = categoriesQuery.data ?? [];
+  const validFiles = selectedFiles.filter((item) => !item.error).map((item) => item.file);
+  const selectedFilesRef = useRef(selectedFiles);
+  selectedFilesRef.current = selectedFiles;
+
+  useEffect(() => {
+    return () => {
+      selectedFilesRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    };
+  }, []);
+
+  function addFiles(incoming: File[]) {
+    setFilePickerError('');
+    const existing = selectedFiles.map((item) => item.file);
+    const next: SelectedFile[] = [...selectedFiles];
+    const errors: string[] = [];
+
+    for (const file of incoming) {
+      if (next.length >= MAX_EVIDENCE_FILES) {
+        errors.push(`Only ${MAX_EVIDENCE_FILES} files can be attached per complaint.`);
+        break;
+      }
+
+      const result = validateEvidenceFile(file, [...existing, ...next.map((item) => item.file)]);
+      if (!result.valid) {
+        errors.push(result.error);
+        continue;
+      }
+
+      next.push({
+        id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      });
+    }
+
+    const selectionError = validateEvidenceSelection(next.map((item) => item.file));
+    if (selectionError) errors.push(selectionError);
+
+    if (errors.length > 0) setFilePickerError(errors[0]!);
+    setSelectedFiles(next.slice(0, MAX_EVIDENCE_FILES));
+  }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragging(false);
-    const dropped = Array.from(e.dataTransfer.files).slice(0, 5 - files.length);
-    setFiles((prev) => [...prev, ...dropped].slice(0, 5));
+    addFiles(Array.from(e.dataTransfer.files));
   }
 
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
-    const picked = Array.from(e.target.files).slice(0, 5 - files.length);
-    setFiles((prev) => [...prev, ...picked].slice(0, 5));
+    addFiles(Array.from(e.target.files));
+    e.target.value = '';
   }
 
-  function removeFile(idx: number) {
-    setFiles((prev) => prev.filter((_, i) => i !== idx));
+  function removeFile(id: string) {
+    setSelectedFiles((prev) => {
+      const removed = prev.find((item) => item.id === id);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return prev.filter((item) => item.id !== id);
+    });
+    setFilePickerError('');
   }
 
   function autoDetect() {
@@ -184,24 +249,31 @@ export default function ReportPage() {
         isPublic: true,
       });
 
-      if (files.length > 0) {
-        setUploadProgress(`Uploading evidence (0/${files.length})…`);
+      if (validFiles.length > 0) {
+        setUploadProgress(`Complaint saved — preparing upload (0/${validFiles.length})…`);
+        setUploadPercent(5);
         const { uploaded, failed } = await uploadAllComplaintEvidence(
           complaint.id,
-          files,
+          validFiles,
           {
             createUploadRequest: (input) => createUploadMutation.mutateAsync(input),
             confirmUpload: (input) => confirmUploadMutation.mutateAsync(input),
           },
-          (done, total) => setUploadProgress(`Uploading evidence (${done}/${total})…`),
+          (done, total, label, percent) => {
+            setUploadProgress(label ?? `Uploading evidence (${done}/${total})…`);
+            setUploadPercent(percent ?? Math.round((done / total) * 100));
+          },
         );
 
         if (failed.length > 0) {
+          setFailedUploads(failed);
           setMediaUploadWarning(
             uploaded > 0
-              ? `${uploaded} of ${files.length} files uploaded. Failed: ${failed.join('; ')}`
-              : `Evidence upload failed: ${failed.join('; ')}`,
+              ? `${uploaded} of ${validFiles.length} files uploaded. ${failed.length} failed — you can retry below.`
+              : `Evidence upload failed for all files. You can retry below.`,
           );
+        } else {
+          setFailedUploads([]);
         }
       }
 
@@ -211,6 +283,46 @@ export default function ReportPage() {
     } finally {
       setIsSubmitting(false);
       setUploadProgress('');
+      setUploadPercent(0);
+    }
+  }
+
+  async function handleRetryUploads() {
+    if (!submittedId || failedUploads.length === 0) return;
+    setIsRetrying(true);
+    setMediaUploadWarning('');
+    setUploadProgress(`Retrying uploads (0/${failedUploads.length})…`);
+    setUploadPercent(0);
+
+    try {
+      const { uploaded, failed } = await retryComplaintEvidenceUploads(
+        submittedId,
+        failedUploads.map((item) => item.file),
+        {
+          createUploadRequest: (input) => createUploadMutation.mutateAsync(input),
+          confirmUpload: (input) => confirmUploadMutation.mutateAsync(input),
+        },
+        (done, total, label, percent) => {
+          setUploadProgress(label ?? `Retrying uploads (${done}/${total})…`);
+          setUploadPercent(percent ?? Math.round((done / total) * 100));
+        },
+      );
+
+      if (failed.length > 0) {
+        setFailedUploads(failed);
+        setMediaUploadWarning(
+          uploaded > 0
+            ? `${uploaded} file(s) uploaded on retry. ${failed.length} still failing.`
+            : `Retry failed for all remaining files.`,
+        );
+      } else {
+        setFailedUploads([]);
+        setMediaUploadWarning('');
+      }
+    } finally {
+      setIsRetrying(false);
+      setUploadProgress('');
+      setUploadPercent(0);
     }
   }
 
@@ -226,9 +338,39 @@ export default function ReportPage() {
             Your complaint has been registered. You&apos;ll receive updates via notifications.
           </p>
           {mediaUploadWarning && (
-            <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              {mediaUploadWarning}
-            </p>
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs text-amber-800">
+              <p>{mediaUploadWarning}</p>
+              {failedUploads.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {failedUploads.map((item) => (
+                    <li key={`${item.file.name}-${item.file.size}`}>
+                      <span className="font-medium">{item.file.name}:</span> {item.error}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          {failedUploads.length > 0 && (
+            <Button
+              variant="outline"
+              className="mt-3 w-full"
+              onClick={() => void handleRetryUploads()}
+              loading={isRetrying}
+            >
+              Retry Failed Uploads ({failedUploads.length})
+            </Button>
+          )}
+          {isRetrying && uploadProgress && (
+            <div className="mt-3">
+              <div className="h-2 overflow-hidden rounded-full bg-[#e2e8f0]">
+                <div
+                  className="h-full rounded-full bg-[#1e40af] transition-all duration-300"
+                  style={{ width: `${uploadPercent}%` }}
+                />
+              </div>
+              <p className="mt-1 text-xs text-[#64748b]">{uploadProgress}</p>
+            </div>
           )}
           <div className="mt-4 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
             <p className="text-xs text-[#94a3b8]">Complaint ID</p>
@@ -249,8 +391,10 @@ export default function ReportPage() {
               onClick={() => {
                 setSubmittedId(null);
                 setMediaUploadWarning('');
+                setFailedUploads([]);
                 setStep(1);
-                setFiles([]);
+                setSelectedFiles([]);
+                setFilePickerError('');
                 setCategoryId('');
                 setTitle('');
                 setDescription('');
@@ -318,56 +462,71 @@ export default function ReportPage() {
                 </div>
                 <p className="text-sm font-medium text-[#0f172a]">Drag & drop files here</p>
                 <p className="mt-1 text-xs text-[#94a3b8]">or click to browse from your device</p>
-                <p className="mt-3 text-xs text-[#94a3b8]">Supports JPG, PNG, MP4 up to 100MB</p>
+                <p className="mt-3 text-xs text-[#94a3b8]">
+                  JPG, PNG, WebP up to 10 MB · MP4, MOV up to 50 MB · Max {MAX_EVIDENCE_FILES} files
+                </p>
                 <input
                   id="file-input"
                   type="file"
                   multiple
-                  accept="image/*,video/*"
+                  accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,.jpg,.jpeg,.png,.webp,.mp4,.mov"
                   className="hidden"
                   onChange={handleFileInput}
                 />
               </div>
 
+              {filePickerError && (
+                <p className="mt-3 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {filePickerError}
+                </p>
+              )}
+
               {/* Uploaded files */}
-              {files.length > 0 && (
+              {selectedFiles.length > 0 && (
                 <div className="mt-4 grid grid-cols-3 gap-3">
-                  {files.map((file, idx) => (
+                  {selectedFiles.map((item) => (
                     <div
-                      key={idx}
-                      className="group relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-[#e2e8f0] bg-[#f8fafc]"
+                      key={item.id}
+                      className={cn(
+                        'group relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border bg-[#f8fafc]',
+                        item.error ? 'border-red-200' : 'border-[#e2e8f0]',
+                      )}
                     >
-                      {file.type.startsWith('image/') ? (
+                      {item.file.type.startsWith('image/') ||
+                      item.file.name.match(/\.(jpe?g|png|webp)$/i) ? (
                         <div
                           className="h-full w-full bg-cover bg-center"
-                          style={{ backgroundImage: `url(${URL.createObjectURL(file)})` }}
+                          style={{ backgroundImage: `url(${item.previewUrl})` }}
                           role="img"
-                          aria-label={file.name}
+                          aria-label={item.file.name}
                         />
                       ) : (
-                        <div className="flex flex-col items-center gap-1">
+                        <div className="flex flex-col items-center gap-1 px-2 text-center">
                           <FileVideo className="h-8 w-8 text-[#94a3b8]" />
-                          <span className="max-w-[80px] truncate text-[10px] text-[#94a3b8]">
-                            {file.name}
+                          <span className="max-w-full truncate text-[10px] text-[#94a3b8]">
+                            {item.file.name}
                           </span>
                         </div>
                       )}
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          removeFile(idx);
+                          removeFile(item.id);
                         }}
                         className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white opacity-0 shadow transition-opacity group-hover:opacity-100"
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-400" />
+                      {!item.error && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-400" />
+                      )}
                     </div>
                   ))}
                 </div>
               )}
 
-              {files.length > 0 && (
+              {selectedFiles.length > 0 && (
                 <div className="mt-3 flex items-center gap-1.5">
                   <Shield className="h-3.5 w-3.5 text-green-600" />
                   <span className="text-xs font-medium text-green-600">
@@ -625,9 +784,9 @@ export default function ReportPage() {
                       {PRIORITY_OPTIONS.find((p) => p.value === priority)?.label ?? priority}{' '}
                       priority
                     </span>
-                    {files.length > 0 && (
+                    {validFiles.length > 0 && (
                       <span className="text-xs text-[#64748b]">
-                        {files.length} file(s) attached
+                        {validFiles.length} file(s) attached
                       </span>
                     )}
                   </div>
@@ -648,7 +807,22 @@ export default function ReportPage() {
               </div>
 
               {formError && <p className="mt-4 text-sm text-[#dc2626]">{formError}</p>}
-              {uploadProgress && <p className="mt-4 text-sm text-[#1e40af]">{uploadProgress}</p>}
+              {isSubmitting && validFiles.length > 0 && (
+                <div className="mt-4">
+                  <div className="h-2 overflow-hidden rounded-full bg-[#e2e8f0]">
+                    <div
+                      className="h-full rounded-full bg-[#1e40af] transition-all duration-300"
+                      style={{ width: `${uploadPercent}%` }}
+                    />
+                  </div>
+                  {uploadProgress && (
+                    <p className="mt-1 text-sm text-[#1e40af]">{uploadProgress}</p>
+                  )}
+                </div>
+              )}
+              {isSubmitting && validFiles.length === 0 && uploadProgress && (
+                <p className="mt-4 text-sm text-[#1e40af]">{uploadProgress}</p>
+              )}
               <div className="mt-6 flex justify-between border-t border-[#f1f5f9] pt-4">
                 <Button variant="outline" onClick={() => setStep(3)} disabled={isSubmitting}>
                   <ArrowLeft className="h-4 w-4" />
