@@ -25,6 +25,8 @@ const serverEnvSchema = z.object({
 const clientEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
   NEXT_PUBLIC_API_URL: z.string().url().default('http://localhost:4000'),
+  /** Public Mapbox token (pk.*) — used for client-side reverse geocoding and maps. */
+  NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

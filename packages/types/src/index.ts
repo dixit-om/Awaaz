@@ -93,6 +93,7 @@ export {
   type ConstituencyDetail,
   type ConstituencySummary,
   type ConstituencyLookupResult,
+  type ReverseGeocodeResult,
   type ManualAssignmentResult,
   type AuthorityAssignmentDetail,
   type GeoAssignmentResult,

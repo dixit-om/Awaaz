@@ -32,6 +32,7 @@ import {
   uploadAllComplaintEvidence,
   type UploadFailure,
 } from '@/lib/media-upload';
+import { formatCoordinates, getOsmMapEmbedUrl } from '@/lib/geocoding';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/trpc/client';
 
@@ -108,16 +109,19 @@ export default function ReportPage() {
   const createMutation = trpc.complaints.createComplaint.useMutation();
   const createUploadMutation = trpc.media.createUploadRequest.useMutation();
   const confirmUploadMutation = trpc.media.confirmUpload.useMutation();
+  const utils = trpc.useUtils();
 
   const [step, setStep] = useState<Step>(1);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [dragging, setDragging] = useState(false);
   const [filePickerError, setFilePickerError] = useState('');
-  const [location, setLocation] = useState('');
+  const [address, setAddress] = useState('');
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [locating, setLocating] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
   const [locationError, setLocationError] = useState('');
+  const [geocodeError, setGeocodeError] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -195,9 +199,34 @@ export default function ReportPage() {
     setFilePickerError('');
   }
 
+  async function resolveAddress(lat: number, lng: number) {
+    setGeocoding(true);
+    setGeocodeError('');
+    try {
+      const result = await utils.client.geo.reverseGeocode.query({
+        latitude: lat,
+        longitude: lng,
+      });
+      setAddress(result.address);
+    } catch (err) {
+      const message =
+        err instanceof TRPCClientError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Could not resolve address for this location.';
+      setGeocodeError(message);
+      setAddress('');
+    } finally {
+      setGeocoding(false);
+    }
+  }
+
   function autoDetect() {
     setLocating(true);
+    setGeocoding(false);
     setLocationError('');
+    setGeocodeError('');
     if (!navigator.geolocation) {
       setLocationError('Geolocation is not supported by your browser.');
       setLocating(false);
@@ -205,17 +234,24 @@ export default function ReportPage() {
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setLatitude(pos.coords.latitude);
-        setLongitude(pos.coords.longitude);
-        setLocation(`${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`);
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setLatitude(lat);
+        setLongitude(lng);
         setLocating(false);
+        void resolveAddress(lat, lng);
       },
       () => {
-        setLocationError('Unable to detect location. Please enter coordinates manually.');
+        setLocationError('Unable to detect location. Please enter an address manually.');
         setLocating(false);
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );
+  }
+
+  function retryGeocode() {
+    if (latitude === null || longitude === null) return;
+    void resolveAddress(latitude, longitude);
   }
 
   function validateDetails(): string | null {
@@ -244,7 +280,7 @@ export default function ReportPage() {
         categoryId,
         latitude: latitude!,
         longitude: longitude!,
-        address: location.trim() || undefined,
+        address: address.trim() || undefined,
         priority,
         isPublic: true,
       });
@@ -398,9 +434,10 @@ export default function ReportPage() {
                 setCategoryId('');
                 setTitle('');
                 setDescription('');
-                setLocation('');
+                setAddress('');
                 setLatitude(null);
                 setLongitude(null);
+                setGeocodeError('');
               }}
             >
               Report Another
@@ -567,41 +604,99 @@ export default function ReportPage() {
                 variant="outline"
                 size="md"
                 onClick={autoDetect}
-                loading={locating}
+                loading={locating || geocoding}
                 className="mt-6 w-full border-dashed"
               >
                 <MapPin className="h-4 w-4 text-[#1e40af]" />
-                {locating ? 'Detecting location…' : '📍 Auto-detect My Location'}
+                {locating
+                  ? 'Detecting location…'
+                  : geocoding
+                    ? 'Resolving address…'
+                    : '📍 Auto-detect My Location'}
               </Button>
 
-              {/* Map placeholder */}
+              {/* Map preview */}
               <div className="relative mt-4 h-[240px] overflow-hidden rounded-xl border border-[#e2e8f0] bg-gradient-to-br from-slate-100 to-slate-200">
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                  <MapPin className="h-10 w-10 text-[#1e40af] drop-shadow-md" />
-                  <p className="text-xs text-[#64748b]">Drag to adjust pin location</p>
-                </div>
-                <div className="absolute bottom-3 left-3 right-3 rounded-lg bg-white/90 px-3 py-2 text-xs text-[#64748b] backdrop-blur-sm">
+                {latitude !== null && longitude !== null ? (
+                  <iframe
+                    title="Location map preview"
+                    src={getOsmMapEmbedUrl(latitude, longitude)}
+                    className="pointer-events-none absolute inset-0 h-full w-full border-0"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                    <MapPin className="h-10 w-10 text-[#1e40af] drop-shadow-md" />
+                    <p className="text-xs text-[#64748b]">Use auto-detect to show a map preview</p>
+                  </div>
+                )}
+                <div className="absolute bottom-3 left-3 right-3 z-10 rounded-lg bg-white/90 px-3 py-2 text-xs text-[#64748b] backdrop-blur-sm">
                   <MapPin className="mr-1 inline h-3 w-3 text-[#1e40af]" />
-                  {location || 'Select location on map or use auto-detect'}
+                  {geocoding
+                    ? 'Resolving address…'
+                    : address ||
+                      (latitude !== null && longitude !== null
+                        ? formatCoordinates(latitude, longitude)
+                        : 'Select location on map or use auto-detect')}
                 </div>
               </div>
 
               {locationError && <p className="mt-3 text-sm text-[#dc2626]">{locationError}</p>}
+              {geocoding && <p className="mt-3 text-sm text-[#1e40af]">Resolving address…</p>}
+              {geocodeError && (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  <p>{geocodeError}</p>
+                  <p className="mt-1 text-xs text-amber-700">
+                    Coordinates are saved — you can continue or retry address lookup.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={retryGeocode}
+                    disabled={geocoding}
+                    className="mt-2 text-xs font-medium text-amber-900 underline disabled:opacity-50"
+                  >
+                    Retry address lookup
+                  </button>
+                </div>
+              )}
               {latitude !== null && longitude !== null && (
                 <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3">
-                  <p className="text-xs font-medium text-[#1e40af]">📍 {location}</p>
-                  <p className="mt-1 text-[10px] text-[#64748b]">
-                    Coordinates: {latitude.toFixed(5)}, {longitude.toFixed(5)}
+                  {address ? (
+                    <p className="text-sm font-medium leading-snug text-[#0f172a]">📍 {address}</p>
+                  ) : (
+                    <p className="text-sm font-medium text-[#64748b]">
+                      📍 Address unavailable — using coordinates
+                    </p>
+                  )}
+                  <p className="mt-2 text-[10px] font-medium uppercase tracking-wide text-[#94a3b8]">
+                    Coordinates
                   </p>
+                  <p className="text-xs text-[#64748b]">{formatCoordinates(latitude, longitude)}</p>
                 </div>
               )}
 
+              <p className="mt-3 text-[10px] text-[#94a3b8]">
+                Address lookup powered by{' '}
+                <a
+                  href="https://www.openstreetmap.org/copyright"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-[#64748b]"
+                >
+                  OpenStreetMap
+                </a>
+              </p>
+
               <div className="mt-4">
                 <Input
-                  label="Or search by address"
-                  placeholder="Search address, landmark…"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  label="Or enter address manually"
+                  placeholder="Building, street, landmark…"
+                  value={address}
+                  onChange={(e) => {
+                    setAddress(e.target.value);
+                    setGeocodeError('');
+                  }}
                   prefix={<MapPin className="h-4 w-4" />}
                 />
               </div>
@@ -770,7 +865,10 @@ export default function ReportPage() {
                   )}
                   <div className="flex items-center gap-1.5 text-xs text-[#64748b]">
                     <MapPin className="h-3.5 w-3.5" />
-                    {location || 'Location not set'}
+                    {address ||
+                      (latitude !== null && longitude !== null
+                        ? formatCoordinates(latitude, longitude)
+                        : 'Location not set')}
                   </div>
                   <div className="flex items-center gap-2">
                     <span

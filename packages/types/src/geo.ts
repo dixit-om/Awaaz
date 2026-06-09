@@ -58,6 +58,11 @@ export type ConstituencySummary = {
   activeAssignment: Pick<ActiveAssignment, 'id' | 'authority'> | null;
 };
 
+/** Result returned from reverseGeocode (OpenStreetMap Nominatim). */
+export type ReverseGeocodeResult = {
+  address: string;
+};
+
 /** Result returned from findConstituencyByLocation. */
 export type ConstituencyLookupResult =
   | {

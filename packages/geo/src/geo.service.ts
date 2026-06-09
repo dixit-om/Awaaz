@@ -7,6 +7,7 @@ import type {
   ConstituencyLookupResult,
   ConstituencySummary,
   FindConstituencyByLocationInput,
+  ReverseGeocodeResult,
   GeoAssignmentResult,
   ListAuthorityAssignmentsInput,
   ListConstituenciesInput,
@@ -14,6 +15,7 @@ import type {
   PaginatedResponse,
 } from '@awaaz/types';
 import { GEO_ERROR } from './geo.constants.js';
+import { reverseGeocodeNominatim } from './nominatim.js';
 import { isValidIndiaCoordinate } from './geo.utils.js';
 import type { GeoRepository } from './geo.repository.js';
 
@@ -137,6 +139,32 @@ export class GeoService {
     }
 
     return { matched: true, constituency: summary };
+  }
+
+  // ---------------------------------------------------------------------------
+  // reverseGeocode — tRPC: geo.reverseGeocode
+  // Protected — converts GPS coordinates to a readable address via OpenStreetMap.
+  // ---------------------------------------------------------------------------
+
+  async reverseGeocode(
+    _actor: AuthUser,
+    input: FindConstituencyByLocationInput,
+  ): Promise<ReverseGeocodeResult> {
+    if (!isValidIndiaCoordinate(input.latitude, input.longitude)) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Coordinates must be within India.',
+      });
+    }
+
+    try {
+      return await reverseGeocodeNominatim(input.latitude, input.longitude);
+    } catch (err) {
+      throw new TRPCError({
+        code: 'BAD_GATEWAY',
+        message: err instanceof Error ? err.message : 'Address lookup failed.',
+      });
+    }
   }
 
   // ---------------------------------------------------------------------------

@@ -22,6 +22,16 @@ export function createGeoRouter(geoService: GeoService) {
       }),
 
     /**
+     * Reverse geocode GPS coordinates to a human-readable address.
+     * Uses OpenStreetMap Nominatim — free, no API key required.
+     */
+    reverseGeocode: protectedProcedure
+      .input(findConstituencyByLocationSchema)
+      .query(({ ctx, input }) => {
+        return geoService.reverseGeocode(ctx.user, input);
+      }),
+
+    /**
      * Full constituency detail — name, code, type, GeoJSON boundary,
      * and the currently active MLA/authority assignment.
      */
