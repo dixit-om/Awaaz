@@ -1,14 +1,14 @@
-import { Sidebar, ADMIN_NAV, CITIZEN_NAV, MLA_NAV } from './sidebar';
+import { Sidebar, type NavItem } from './sidebar';
 import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
   role?: 'citizen' | 'mla' | 'admin';
+  nav: NavItem[];
   user?: { name: string; role: string };
 }
 
-export function DashboardLayout({ children, role = 'citizen', user }: DashboardLayoutProps) {
-  const nav = role === 'mla' ? MLA_NAV : role === 'admin' ? ADMIN_NAV : CITIZEN_NAV;
+export function DashboardLayout({ children, role = 'citizen', nav, user }: DashboardLayoutProps) {
   const showNewReport = role === 'citizen';
 
   return (

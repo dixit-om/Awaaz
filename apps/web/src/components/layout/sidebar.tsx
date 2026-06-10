@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import type { LucideIcon } from 'lucide-react';
 
-interface NavItem {
+export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;

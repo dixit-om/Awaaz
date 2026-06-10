@@ -1,21 +1,12 @@
 'use client';
 
-import {
-  Phone,
-  Edit3,
-  Bell,
-  Globe,
-  LogOut,
-  Shield,
-  FileText,
-  CheckCircle2,
-  Star,
-} from 'lucide-react';
+import { Edit3, LogOut, Shield, FileText, CheckCircle2, Star } from 'lucide-react';
 import { PageHeader } from '@/components/layout/dashboard-layout';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { NotificationPreferencesForm } from '@/components/notifications/notification-preferences-form';
 import { useAuth } from '@/contexts/auth-context';
 
 export default function ProfilePage() {
@@ -125,52 +116,7 @@ export default function ProfilePage() {
             </div>
           </Card>
 
-          {/* Notification Preferences */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-            </CardHeader>
-            <div className="space-y-4">
-              {[
-                {
-                  label: 'SMS Notifications',
-                  sub: 'Status updates via SMS',
-                  icon: Phone,
-                  enabled: true,
-                },
-                {
-                  label: 'In-App Notifications',
-                  sub: 'Alerts inside the AWAAZ app',
-                  icon: Bell,
-                  enabled: true,
-                },
-                {
-                  label: 'Community Updates',
-                  sub: 'Ward news and announcements',
-                  icon: Globe,
-                  enabled: false,
-                },
-              ].map((pref) => (
-                <div key={pref.label} className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#f1f5f9]">
-                    <pref.icon className="h-4 w-4 text-[#64748b]" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-[#0f172a]">{pref.label}</p>
-                    <p className="text-xs text-[#94a3b8]">{pref.sub}</p>
-                  </div>
-                  <button
-                    className={`h-5.5 relative w-10 rounded-full transition-colors ${pref.enabled ? 'bg-[#1e40af]' : 'bg-[#e2e8f0]'}`}
-                    style={{ height: '22px' }}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${pref.enabled ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
-                    />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <NotificationPreferencesForm />
 
           {/* Account Security */}
           <Card>

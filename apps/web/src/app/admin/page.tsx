@@ -11,6 +11,8 @@ import {
   UserCheck,
   Users,
 } from 'lucide-react';
+import { NotificationBell } from '@/components/notifications/notification-bell';
+import { NotificationWidget } from '@/components/notifications/notification-widget';
 import { PageHeader } from '@/components/layout/dashboard-layout';
 import { trpc } from '@/trpc/client';
 
@@ -97,7 +99,9 @@ export default function AdminOverviewPage() {
         title="Admin Overview"
         subtitle="Platform health, user statistics, and governance KPIs"
         breadcrumb={[{ label: 'Admin' }, { label: 'Overview' }]}
-      />
+      >
+        <NotificationBell role="admin" />
+      </PageHeader>
 
       <div className="px-8 pb-12">
         {/* ── User KPI grid ─── */}
@@ -183,6 +187,15 @@ export default function AdminOverviewPage() {
             sub={`${overview?.rejectedComplaints ?? 0} rejected`}
             icon={<TrendingUp className="h-5 w-5 text-[#1e40af]" />}
             accent="bg-[#eff6ff]"
+          />
+        </div>
+
+        <div className="mt-8">
+          <NotificationWidget
+            role="admin"
+            title="Platform Notifications"
+            subtitle="System events and platform activity"
+            limit={5}
           />
         </div>
 

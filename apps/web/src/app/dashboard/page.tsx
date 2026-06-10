@@ -7,6 +7,8 @@ import { Badge, statusToBadgeVariant } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
+import { NotificationBell } from '@/components/notifications/notification-bell';
+import { NotificationWidget } from '@/components/notifications/notification-widget';
 import { useCurrentUser } from '@/contexts/auth-context';
 import { STATUS_LABELS, formatComplaintId, formatRelativeDate } from '@/lib/complaints';
 import { trpc } from '@/trpc/client';
@@ -46,7 +48,10 @@ export default function CitizenDashboard() {
               Track your civic reports and see how your community is improving.
             </p>
           </div>
-          <Avatar name={user?.name ?? 'Citizen'} size="lg" />
+          <div className="flex items-center gap-3">
+            <NotificationBell role="citizen" />
+            <Avatar name={user?.name ?? 'Citizen'} size="lg" />
+          </div>
         </div>
       </div>
 
@@ -162,6 +167,13 @@ export default function CitizenDashboard() {
         </div>
 
         <div className="space-y-4">
+          <NotificationWidget
+            role="citizen"
+            title="Recent Notifications"
+            subtitle="Latest updates on your complaints"
+            limit={5}
+          />
+
           <Card>
             <h3 className="text-sm font-semibold text-[#0f172a]">Quick Actions</h3>
             <div className="mt-4 space-y-2">

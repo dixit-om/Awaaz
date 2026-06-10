@@ -6,6 +6,8 @@ import { StatCard } from '@/components/ui/stat-card';
 import { Badge, statusToBadgeVariant } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { NotificationBell } from '@/components/notifications/notification-bell';
+import { NotificationWidget } from '@/components/notifications/notification-widget';
 import { useCurrentUser } from '@/contexts/auth-context';
 import {
   PRIORITY_LABELS,
@@ -36,6 +38,7 @@ export default function MLADashboard() {
           <h1 className="text-2xl font-bold text-[#0f172a]">Authority Overview</h1>
           <p className="mt-1 text-sm text-[#64748b]">Welcome back, {user?.name ?? 'Authority'}</p>
         </div>
+        <NotificationBell role="mla" />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -125,6 +128,15 @@ export default function MLADashboard() {
           ))}
         </div>
       </Card>
+
+      <div className="mt-6">
+        <NotificationWidget
+          role="mla"
+          title="Recent Activity"
+          subtitle="Assignment and status change notifications"
+          limit={5}
+        />
+      </div>
 
       <div className="mt-6 rounded-2xl border border-[#e2e8f0] bg-white p-5 shadow-sm">
         <div className="flex items-center gap-2">

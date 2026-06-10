@@ -2,11 +2,11 @@
 
 import { NotificationsPageContent } from '@/components/notifications/notifications-page-content';
 
-export default function NotificationsPage() {
+export default function AdminNotificationsPage() {
   return (
     <NotificationsPageContent
-      role="citizen"
-      breadcrumb={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Notifications' }]}
+      role="admin"
+      breadcrumb={[{ label: 'Admin', href: '/admin' }, { label: 'Notifications' }]}
     />
   );
 }

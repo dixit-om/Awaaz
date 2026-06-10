@@ -2,11 +2,11 @@
 
 import { NotificationsPageContent } from '@/components/notifications/notifications-page-content';
 
-export default function NotificationsPage() {
+export default function MLANotificationsPage() {
   return (
     <NotificationsPageContent
-      role="citizen"
-      breadcrumb={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Notifications' }]}
+      role="mla"
+      breadcrumb={[{ label: 'Dashboard', href: '/mla' }, { label: 'Notifications' }]}
     />
   );
 }
